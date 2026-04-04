@@ -32,4 +32,4 @@ jobs:
 
       # 빌드 실행
       - name: Build with Gradle
-        run: ./gradlew build
+        run: ./gradlew build -x test

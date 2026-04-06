@@ -1,6 +1,7 @@
 package com.aipo.backend.domain.user.controller;
 
 import com.aipo.backend.domain.user.entity.User;
+import com.aipo.backend.domain.user.entity.UserRole;
 import com.aipo.backend.domain.user.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -36,6 +37,6 @@ public class UserController {
         private String loginId;
         private String userName;
         private String email;
-        private String role;
+        private UserRole role;
     }
 }

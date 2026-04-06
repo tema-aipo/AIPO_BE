@@ -73,6 +73,14 @@ public class User {
         this.lastLoginAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void updateStatus(UserStatus status) {
+        this.userStatus = status;
+        if (status == UserStatus.WITHDRAWN) {
+            this.deletedAt = LocalDateTime.now();
+        }
+        this.updatedAt = LocalDateTime.now();
+    }
 }
 // NOTE:
 // 현재는 USER/ACTIVE 중심의 최소 인증 구조만 사용한다.

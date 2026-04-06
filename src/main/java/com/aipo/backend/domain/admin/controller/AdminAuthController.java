@@ -35,13 +35,14 @@ public class AdminAuthController {
         );
 
         User user = userRepository.findByLoginId(request.getLoginId())
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BadCredentialsException("사용자를 찾을 수 없습니다."));
 
         if (user.getRole() != UserRole.ADMIN) {
             throw new BadCredentialsException("관리자 계정이 아닙니다.");
         }
 
         user.updateLastLoginAt();
+        userRepository.save(user);
 
         String accessToken = jwtTokenProvider.createAccessToken(user.getLoginId());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getLoginId());

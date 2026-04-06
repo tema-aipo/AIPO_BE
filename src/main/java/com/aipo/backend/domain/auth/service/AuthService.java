@@ -3,6 +3,7 @@ package com.aipo.backend.domain.auth.service;
 import com.aipo.backend.domain.auth.dto.*;
 import com.aipo.backend.domain.auth.entity.UserRefreshToken;
 import com.aipo.backend.domain.auth.repository.UserRefreshTokenRepository;
+import com.aipo.backend.domain.log.service.LoginLogService;
 import com.aipo.backend.domain.user.entity.User;
 import com.aipo.backend.domain.user.repository.UserRepository;
 import com.aipo.backend.global.security.jwt.JwtTokenProvider;
@@ -24,6 +25,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
+    private final LoginLogService loginLogService;
 
     public RegisterResponse register(RegisterRequest request) {
         if (userRepository.existsByLoginId(request.getLoginId())) {
@@ -59,6 +61,7 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         user.updateLastLoginAt();
+        loginLogService.record(user);
 
         String accessToken = jwtTokenProvider.createAccessToken(user.getLoginId());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getLoginId());

@@ -1,4 +1,8 @@
 package com.aipo.backend.domain.user.entity;
 
-public class UserStatus {
+public enum UserStatus {
+    ACTIVE,
+    INACTIVE,
+    WITHDRAWN,
+    SUSPENDED
 }

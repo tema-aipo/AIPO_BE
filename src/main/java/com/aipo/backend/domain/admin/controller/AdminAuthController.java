@@ -2,6 +2,7 @@ package com.aipo.backend.domain.admin.controller;
 
 import com.aipo.backend.domain.auth.dto.LoginRequest;
 import com.aipo.backend.domain.auth.dto.LoginResponse;
+import com.aipo.backend.domain.log.service.LoginLogService;
 import com.aipo.backend.domain.user.entity.User;
 import com.aipo.backend.domain.user.entity.UserRole;
 import com.aipo.backend.domain.user.repository.UserRepository;
@@ -24,6 +25,7 @@ public class AdminAuthController {
     private final UserRepository userRepository;
     private final UserRefreshTokenRepository userRefreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final LoginLogService loginLogService;
 
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
@@ -42,6 +44,7 @@ public class AdminAuthController {
         }
 
         user.updateLastLoginAt();
+        loginLogService.record(user);
         userRepository.save(user);
 
         String accessToken = jwtTokenProvider.createAccessToken(user.getLoginId());

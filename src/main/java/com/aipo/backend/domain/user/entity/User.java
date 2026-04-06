@@ -29,11 +29,13 @@ public class User {
     @Column(name = "email", length = 100)
     private String email;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
-    private String role;
+    private UserRole role;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "user_status", nullable = false, length = 20)
-    private String userStatus;
+    private UserStatus userStatus;
 
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
@@ -55,14 +57,27 @@ public class User {
         this.passwordHash = passwordHash;
         this.userName = userName;
         this.email = email;
-        this.role = "USER"; // 현재는 USER/ACTIVE 중심의 최소 인증 구조만 사용한다.
-        this.userStatus = "ACTIVE"; //INACTIVE,WITHDRAWN,SUSPENDED 추가 예정
+        this.role = UserRole.USER;
+        this.userStatus = UserStatus.ACTIVE;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
     public void updateLastLoginAt() {
         this.lastLoginAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+    public void withdraw() {
+        this.userStatus = UserStatus.WITHDRAWN;
+        this.deletedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+    public boolean isWithdrawn() {
+        return this.userStatus == UserStatus.WITHDRAWN;
+    }
+
+    public void changeRole(UserRole role) {
+        this.role = role;
         this.updatedAt = LocalDateTime.now();
     }
 }

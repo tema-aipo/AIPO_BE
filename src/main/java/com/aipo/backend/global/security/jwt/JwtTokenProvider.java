@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Date;
 
 @Component
@@ -40,12 +39,13 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String createAccessToken(String loginId) {
+    public String createAccessToken(String loginId, String role) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + accessTokenExpiration);
 
         return Jwts.builder()
                 .subject(loginId)
+                .claim("role", role)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -58,6 +58,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(loginId)
+                .claim("tokenType", "REFRESH")
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -93,13 +94,18 @@ public class JwtTokenProvider {
                 .getSubject();
     }
 
+    public String getRole(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("role", String.class);
+    }
+
     public Authentication getAuthentication(String token) {
         String loginId = getLoginId(token);
         var userDetails = userDetailsService.loadUserByUsername(loginId);
         return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
     }
 }
-// NOTE:
-// 현재 JWT는 최소 claim(loginId) 기반으로 동작한다.
-// 추후 userId, role, tokenType 등의 claim 추가 가능성이 있으며,
-// secret 값은 운영 환경에서 application.yaml이 아닌 환경변수/보안 설정으로 분리해야 한다.

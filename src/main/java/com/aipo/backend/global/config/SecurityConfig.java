@@ -32,6 +32,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/users/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),
@@ -45,7 +47,3 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 }
-// NOTE:
-// 현재는 인증 기능 검증을 위한 최소 Security 설정이다.
-// 추후 사용자 앱/관리자 웹/API 공개 범위에 따라
-// permitAll 경로, USER/ADMIN 권한 정책, CORS, 인증 실패 응답 형식을 세분화해야 한다.

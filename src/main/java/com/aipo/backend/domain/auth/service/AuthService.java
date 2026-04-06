@@ -4,12 +4,14 @@ import com.aipo.backend.domain.auth.dto.*;
 import com.aipo.backend.domain.auth.entity.UserRefreshToken;
 import com.aipo.backend.domain.auth.repository.UserRefreshTokenRepository;
 import com.aipo.backend.domain.user.entity.User;
+import com.aipo.backend.domain.user.entity.UserStatus;
 import com.aipo.backend.domain.user.repository.UserRepository;
+import com.aipo.backend.global.exception.CustomException;
+import com.aipo.backend.global.exception.ErrorCode;
 import com.aipo.backend.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,9 +29,12 @@ public class AuthService {
 
     public RegisterResponse register(RegisterRequest request) {
         if (userRepository.existsByLoginId(request.getLoginId())) {
-            throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
+            throw new CustomException(ErrorCode.DUPLICATE_LOGIN_ID);
         }
-
+        if (request.getEmail() != null && !request.getEmail().isBlank()
+                && userRepository.existsByEmail(request.getEmail())) {
+            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+        }
         User user = new User(
                 request.getLoginId(),
                 passwordEncoder.encode(request.getPassword()),
@@ -48,7 +53,7 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
+        authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getLoginId(),
                         request.getPassword()
@@ -56,11 +61,18 @@ public class AuthService {
         );
 
         User user = userRepository.findByLoginId(request.getLoginId())
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getUserStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(ErrorCode.WITHDRAWN_USER);
+        }
 
         user.updateLastLoginAt();
 
-        String accessToken = jwtTokenProvider.createAccessToken(user.getLoginId());
+        String accessToken = jwtTokenProvider.createAccessToken(
+                user.getLoginId(),
+                user.getRole().name()
+        );
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getLoginId());
 
         userRefreshTokenRepository.deleteByUser_UserId(user.getUserId());
@@ -87,15 +99,25 @@ public class AuthService {
         String refreshToken = request.getRefreshToken();
 
         if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new IllegalArgumentException("유효하지 않은 refresh token입니다.");
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         UserRefreshToken savedToken = userRefreshTokenRepository.findByRefreshToken(refreshToken)
-                .orElseThrow(() -> new IllegalArgumentException("저장된 refresh token이 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
 
         String loginId = jwtTokenProvider.getLoginId(refreshToken);
 
-        String newAccessToken = jwtTokenProvider.createAccessToken(loginId);
+        User user = userRepository.findByLoginId(loginId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getUserStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(ErrorCode.WITHDRAWN_USER);
+        }
+
+        String newAccessToken = jwtTokenProvider.createAccessToken(
+                user.getLoginId(),
+                user.getRole().name()
+        );
 
         return new ReissueResponse(newAccessToken, "Bearer");
     }
@@ -104,19 +126,15 @@ public class AuthService {
         String accessToken = jwtTokenProvider.resolveToken(bearerToken);
 
         if (accessToken == null || !jwtTokenProvider.validateToken(accessToken)) {
-            throw new IllegalArgumentException("유효하지 않은 access token입니다.");
+            throw new CustomException(ErrorCode.INVALID_ACCESS_TOKEN);
         }
 
         String loginId = jwtTokenProvider.getLoginId(accessToken);
         User user = userRepository.findByLoginId(loginId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         userRefreshTokenRepository.deleteByUser_UserId(user.getUserId());
 
         return new MessageResponse("로그아웃되었습니다.");
     }
 }
-// NOTE:
-// 현재 AuthService는 최소 인증 플로우(register/login/reissue/logout) 중심이다.
-// 추후 사용자 상태 검증, 로그인 실패 횟수 제한, 감사 로그,
-// 세분화된 예외 처리 및 관리자 인증 정책을 추가할 수 있다.

@@ -37,8 +37,9 @@ public class UserRefreshToken {
         this.expiresAt = expiresAt;
         this.createdAt = LocalDateTime.now();
     }
+
+    public void updateToken(String refreshToken, LocalDateTime expiresAt) {
+        this.refreshToken = refreshToken;
+        this.expiresAt = expiresAt;
+    }
 }
-// NOTE:
-// 현재는 사용자당 단일 refresh token을 저장하는 단순 구조다.
-// 추후 다중 기기 로그인, refresh token rotation, 토큰 해시 저장,
-// 기기별 세션 관리가 필요해지면 테이블 구조와 갱신 정책을 확장해야 한다.

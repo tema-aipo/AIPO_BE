@@ -44,3 +44,55 @@ CREATE TABLE user_refresh_token (
     CONSTRAINT fk_refresh_token_user
         FOREIGN KEY (user_id) REFERENCES app_user(user_id) ON DELETE CASCADE
 );
+
+CREATE TABLE ipo_attraction_score (
+    score_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    stock_id BIGINT NOT NULL,
+    total_score NUMERIC(5,2) NOT NULL,
+    financial_score NUMERIC(5,2),
+    demand_score NUMERIC(5,2),
+    market_score NUMERIC(5,2),
+    score_comment TEXT,
+    calculated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_ipo_attraction_score_stock
+        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+);
+
+CREATE TABLE user_favorite_stock (
+    favorite_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    stock_id BIGINT NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    alert_priority INT NOT NULL DEFAULT 1,
+    alert_yn CHAR(1) NOT NULL DEFAULT 'Y',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_user_favorite_stock UNIQUE (user_id, stock_id),
+    CONSTRAINT fk_user_favorite_stock_user
+        FOREIGN KEY (user_id) REFERENCES app_user(user_id),
+    CONSTRAINT fk_user_favorite_stock_stock
+        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+);
+
+CREATE TABLE ipo_schedule (
+    schedule_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    stock_id BIGINT NOT NULL,
+    schedule_type VARCHAR(30) NOT NULL,
+    schedule_date DATE NOT NULL,
+    note VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_ipo_schedule_stock
+        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+);
+
+CREATE TABLE ipo_view_log (
+    view_log_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id BIGINT,
+    stock_id BIGINT NOT NULL,
+    viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source VARCHAR(30),
+    CONSTRAINT fk_ipo_view_log_user
+        FOREIGN KEY (user_id) REFERENCES app_user(user_id),
+    CONSTRAINT fk_ipo_view_log_stock
+        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+);

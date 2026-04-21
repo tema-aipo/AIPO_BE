@@ -1,0 +1,229 @@
+package com.aipo.backend.domain.calendar.service;
+
+import com.aipo.backend.domain.calendar.dto.CalendarMonthResponse;
+import com.aipo.backend.domain.ipo.entity.IpoAttractionScore;
+import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
+import com.aipo.backend.domain.ipo.entity.IpoSchedule;
+import com.aipo.backend.domain.ipo.entity.IpoStock;
+import com.aipo.backend.domain.ipo.entity.ScheduleType;
+import com.aipo.backend.domain.ipo.repository.IpoAttractionScoreRepository;
+import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
+import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.lang.reflect.Constructor;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class CalendarServiceTest {
+
+    @Mock
+    private IpoScheduleRepository ipoScheduleRepository;
+
+    @Mock
+    private IpoLeadManagerRepository ipoLeadManagerRepository;
+
+    @Mock
+    private IpoAttractionScoreRepository ipoAttractionScoreRepository;
+
+    @Test
+    @DisplayName("월 렌더링용 전체 날짜 셀과 선택 날짜 상세 목록을 조립한다")
+    void getMonthlyCalendar_success() {
+        CalendarService calendarService = spy(new CalendarService(
+                ipoScheduleRepository,
+                ipoLeadManagerRepository,
+                ipoAttractionScoreRepository
+        ));
+
+        Long ipoId = 1L;
+        IpoStock stock = ipoStock(ipoId, "AIPO");
+        IpoSchedule subscriptionStart = schedule(stock, ScheduleType.SUBSCRIPTION_START, LocalDate.of(2026, 4, 28));
+        IpoSchedule refund = schedule(stock, ScheduleType.REFUND, LocalDate.of(2026, 4, 30));
+
+        when(ipoScheduleRepository.findAllByScheduleDateBetweenOrderByScheduleDateAsc(
+                LocalDate.of(2026, 4, 1),
+                LocalDate.of(2026, 4, 30)
+        )).thenReturn(List.of(subscriptionStart, refund));
+        when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
+                leadManager(stock, "주관사A", 1),
+                leadManager(stock, "주관사B", 2)
+        ));
+        when(ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(ipoId))
+                .thenReturn(Optional.of(attractionScore(stock, 88, LocalDateTime.of(2026, 4, 21, 9, 0))));
+
+        CalendarMonthResponse response = calendarService.getMonthlyCalendar(
+                2026,
+                4,
+                LocalDate.of(2026, 4, 28)
+        );
+
+        assertThat(response.year()).isEqualTo(2026);
+        assertThat(response.month()).isEqualTo(4);
+        assertThat(response.calendarCells()).hasSize(35);
+        assertThat(response.calendarCells().get(0).date()).isEqualTo(LocalDate.of(2026, 3, 29));
+        assertThat(response.calendarCells().get(0).inCurrentMonth()).isFalse();
+        assertThat(response.calendarCells().get(30).date()).isEqualTo(LocalDate.of(2026, 4, 28));
+        assertThat(response.calendarCells().get(30).items()).hasSize(1);
+        assertThat(response.calendarCells().get(30).items().get(0).ipoId()).isEqualTo(ipoId);
+        assertThat(response.calendarCells().get(30).items().get(0).companyName()).isEqualTo("AIPO");
+        assertThat(response.calendarCells().get(30).items().get(0).scheduleType()).isEqualTo("SUBSCRIPTION_START");
+        assertThat(response.calendarCells().get(30).items().get(0).scheduleLabel()).isEqualTo("청약 시작");
+        assertThat(response.selectedDateSection().selectedDate()).isEqualTo(LocalDate.of(2026, 4, 28));
+        assertThat(response.selectedDateSection().companies()).hasSize(1);
+        assertThat(response.selectedDateSection().companies().get(0).ipoId()).isEqualTo(ipoId);
+        assertThat(response.selectedDateSection().companies().get(0).securitiesCompanyName()).isEqualTo("주관사A");
+        assertThat(response.selectedDateSection().companies().get(0).attractionScore()).isEqualByComparingTo("88");
+        assertThat(response.selectedDateSection().companies().get(0).scheduleLabel()).isEqualTo("청약 시작");
+    }
+
+    @Test
+    @DisplayName("selectedDate가 없고 조회 월이 현재 월이면 오늘 날짜를 기본 선택한다")
+    void getMonthlyCalendar_whenSelectedDateMissingInCurrentMonth_defaultsToToday() {
+        CalendarService calendarService = spy(new CalendarService(
+                ipoScheduleRepository,
+                ipoLeadManagerRepository,
+                ipoAttractionScoreRepository
+        ));
+
+        IpoStock stock = ipoStock(1L, "AIPO");
+        IpoSchedule schedule = schedule(stock, ScheduleType.LISTING, LocalDate.of(2026, 4, 30));
+
+        when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
+        when(ipoScheduleRepository.findAllByScheduleDateBetweenOrderByScheduleDateAsc(
+                LocalDate.of(2026, 4, 1),
+                LocalDate.of(2026, 4, 30)
+        )).thenReturn(List.of(schedule));
+
+        CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 4, null);
+
+        assertThat(response.selectedDateSection().selectedDate()).isEqualTo(LocalDate.of(2026, 4, 21));
+        assertThat(response.selectedDateSection().companies()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("selectedDate가 없고 현재 월이 아니면 첫 일정 날짜를 기본 선택한다")
+    void getMonthlyCalendar_whenSelectedDateMissingOutsideCurrentMonth_defaultsToFirstScheduledDate() {
+        CalendarService calendarService = spy(new CalendarService(
+                ipoScheduleRepository,
+                ipoLeadManagerRepository,
+                ipoAttractionScoreRepository
+        ));
+
+        IpoStock firstStock = ipoStock(1L, "AIPO");
+        IpoStock secondStock = ipoStock(2L, "BIPO");
+
+        when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
+        when(ipoScheduleRepository.findAllByScheduleDateBetweenOrderByScheduleDateAsc(
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 31)
+        )).thenReturn(List.of(
+                schedule(firstStock, ScheduleType.DEMAND_FORECAST_START, LocalDate.of(2026, 5, 10)),
+                schedule(secondStock, ScheduleType.SUBSCRIPTION_START, LocalDate.of(2026, 5, 12))
+        ));
+        when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(1L)).thenReturn(List.of());
+        when(ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(1L)).thenReturn(Optional.empty());
+
+        CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 5, null);
+
+        assertThat(response.selectedDateSection().selectedDate()).isEqualTo(LocalDate.of(2026, 5, 10));
+        assertThat(response.selectedDateSection().companies()).hasSize(1);
+        assertThat(response.selectedDateSection().companies().get(0).companyName()).isEqualTo("AIPO");
+    }
+
+    @Test
+    @DisplayName("일정이 없는 달은 해당 월 1일을 기본 선택한다")
+    void getMonthlyCalendar_whenNoSchedules_defaultsToFirstDayOfMonth() {
+        CalendarService calendarService = spy(new CalendarService(
+                ipoScheduleRepository,
+                ipoLeadManagerRepository,
+                ipoAttractionScoreRepository
+        ));
+
+        when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
+        when(ipoScheduleRepository.findAllByScheduleDateBetweenOrderByScheduleDateAsc(
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 6, 30)
+        )).thenReturn(List.of());
+
+        CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 6, null);
+
+        assertThat(response.calendarCells()).hasSize(35);
+        assertThat(response.selectedDateSection().selectedDate()).isEqualTo(LocalDate.of(2026, 6, 1));
+        assertThat(response.selectedDateSection().companies()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("selectedDate가 조회 월 밖이면 예외가 발생한다")
+    void getMonthlyCalendar_whenSelectedDateOutOfMonth_throwIllegalArgumentException() {
+        CalendarService calendarService = new CalendarService(
+                ipoScheduleRepository,
+                ipoLeadManagerRepository,
+                ipoAttractionScoreRepository
+        );
+
+        assertThatThrownBy(() -> calendarService.getMonthlyCalendar(2026, 4, LocalDate.of(2026, 5, 1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("selectedDate must be within the requested year and month.");
+    }
+
+    private IpoStock ipoStock(Long id, String companyName) {
+        IpoStock ipoStock = instantiate(IpoStock.class);
+        ReflectionTestUtils.setField(ipoStock, "id", id);
+        ReflectionTestUtils.setField(ipoStock, "companyName", companyName);
+        ReflectionTestUtils.setField(ipoStock, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(ipoStock, "updatedAt", LocalDateTime.now());
+        return ipoStock;
+    }
+
+    private IpoSchedule schedule(IpoStock stock, ScheduleType scheduleType, LocalDate scheduleDate) {
+        IpoSchedule schedule = instantiate(IpoSchedule.class);
+        ReflectionTestUtils.setField(schedule, "stock", stock);
+        ReflectionTestUtils.setField(schedule, "scheduleType", scheduleType);
+        ReflectionTestUtils.setField(schedule, "scheduleDate", scheduleDate);
+        ReflectionTestUtils.setField(schedule, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(schedule, "updatedAt", LocalDateTime.now());
+        return schedule;
+    }
+
+    private IpoLeadManager leadManager(IpoStock stock, String managerName, int displayOrder) {
+        IpoLeadManager leadManager = instantiate(IpoLeadManager.class);
+        ReflectionTestUtils.setField(leadManager, "stock", stock);
+        ReflectionTestUtils.setField(leadManager, "managerName", managerName);
+        ReflectionTestUtils.setField(leadManager, "displayOrder", displayOrder);
+        ReflectionTestUtils.setField(leadManager, "createdAt", LocalDateTime.now());
+        return leadManager;
+    }
+
+    private IpoAttractionScore attractionScore(IpoStock stock, int totalScore, LocalDateTime calculatedAt) {
+        IpoAttractionScore attractionScore = instantiate(IpoAttractionScore.class);
+        ReflectionTestUtils.setField(attractionScore, "stock", stock);
+        ReflectionTestUtils.setField(attractionScore, "totalScore", totalScore);
+        ReflectionTestUtils.setField(attractionScore, "calculatedAt", calculatedAt);
+        return attractionScore;
+    }
+
+    private <T> T instantiate(Class<T> type) {
+        try {
+            Constructor<T> constructor = type.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return constructor.newInstance();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Failed to instantiate " + type.getSimpleName(), exception);
+        }
+    }
+}

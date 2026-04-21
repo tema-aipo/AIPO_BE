@@ -49,4 +49,12 @@ public class UserFavoriteStock {
     // 생성 시각
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    public static UserFavoriteStock create(Long userId, IpoStock stock) {
+        UserFavoriteStock favoriteStock = new UserFavoriteStock();
+        favoriteStock.userId = userId;
+        favoriteStock.stock = stock;
+        favoriteStock.createdAt = LocalDateTime.now();
+        return favoriteStock;
+    }
 }

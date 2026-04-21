@@ -7,6 +7,9 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
+    IPO_NOT_FOUND(HttpStatus.NOT_FOUND, "공모주를 찾을 수 없습니다."),
+    DUPLICATE_FAVORITE_STOCK(HttpStatus.CONFLICT, "이미 관심종목으로 등록된 공모주입니다."),
+    FAVORITE_STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "관심종목을 찾을 수 없습니다."),
     DUPLICATE_LOGIN_ID(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "비밀번호가 일치하지 않습니다."),

@@ -67,6 +67,19 @@ public class User {
         this.lastLoginAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void updateProfile(String userName, String email) {
+        this.userName = userName;
+        this.email = email;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.passwordUpdatedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void withdraw() {
         this.userStatus = UserStatus.WITHDRAWN;
         this.deletedAt = LocalDateTime.now();

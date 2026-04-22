@@ -2,6 +2,9 @@ package com.aipo.backend.domain.auth.controller;
 
 import com.aipo.backend.domain.auth.dto.*;
 import com.aipo.backend.domain.auth.service.AuthService;
+import com.aipo.backend.global.config.OpenApiConfig;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +32,11 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public MessageResponse logout(@RequestHeader("Authorization") String authorizationHeader) {
+    @Operation(summary = "로그아웃")
+    @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME_NAME)
+    public MessageResponse logout(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader
+    ) {
         return authService.logout(authorizationHeader);
     }
 }

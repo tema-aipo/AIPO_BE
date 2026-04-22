@@ -1,17 +1,27 @@
 package com.aipo.backend.domain.auth.service;
 
-import com.aipo.backend.domain.auth.dto.*;
+import com.aipo.backend.domain.auth.dto.LoginRequest;
+import com.aipo.backend.domain.auth.dto.LoginResponse;
+import com.aipo.backend.domain.auth.dto.MessageResponse;
+import com.aipo.backend.domain.auth.dto.RegisterRequest;
+import com.aipo.backend.domain.auth.dto.RegisterResponse;
+import com.aipo.backend.domain.auth.dto.ReissueRequest;
+import com.aipo.backend.domain.auth.dto.ReissueResponse;
 import com.aipo.backend.domain.auth.entity.UserRefreshToken;
 import com.aipo.backend.domain.auth.repository.UserRefreshTokenRepository;
+import com.aipo.backend.domain.investmentprofile.service.InvestmentProfileService;
+import com.aipo.backend.domain.user.service.NotificationSettingService;
 import com.aipo.backend.domain.user.entity.User;
 import com.aipo.backend.domain.user.entity.UserStatus;
 import com.aipo.backend.domain.user.repository.UserRepository;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
 import com.aipo.backend.global.security.jwt.JwtTokenProvider;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +36,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
+    private final InvestmentProfileService investmentProfileService;
+    private final NotificationSettingService notificationSettingService;
 
     public RegisterResponse register(RegisterRequest request) {
         if (userRepository.existsByLoginId(request.getLoginId())) {
@@ -35,6 +47,7 @@ public class AuthService {
                 && userRepository.existsByEmail(request.getEmail())) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
+
         User user = new User(
                 request.getLoginId(),
                 passwordEncoder.encode(request.getPassword()),
@@ -43,6 +56,8 @@ public class AuthService {
         );
 
         User savedUser = userRepository.save(user);
+        investmentProfileService.initializeNotTestedResult(savedUser.getUserId());
+        notificationSettingService.initializeDefaultSettings(savedUser.getUserId());
 
         return new RegisterResponse(
                 savedUser.getUserId(),
@@ -53,12 +68,16 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getLoginId(),
-                        request.getPassword()
-                )
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getLoginId(),
+                            request.getPassword()
+                    )
+            );
+        } catch (AuthenticationException exception) {
+            throw new CustomException(ErrorCode.INVALID_PASSWORD);
+        }
 
         User user = userRepository.findByLoginId(request.getLoginId())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -102,10 +121,15 @@ public class AuthService {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        UserRefreshToken savedToken = userRefreshTokenRepository.findByRefreshToken(refreshToken)
+        userRefreshTokenRepository.findByRefreshToken(refreshToken)
                 .orElseThrow(() -> new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
 
-        String loginId = jwtTokenProvider.getLoginId(refreshToken);
+        String loginId;
+        try {
+            loginId = jwtTokenProvider.getLoginId(refreshToken);
+        } catch (JwtException | IllegalArgumentException exception) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
 
         User user = userRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -129,11 +153,18 @@ public class AuthService {
             throw new CustomException(ErrorCode.INVALID_ACCESS_TOKEN);
         }
 
-        String loginId = jwtTokenProvider.getLoginId(accessToken);
+        String loginId;
+        try {
+            loginId = jwtTokenProvider.getLoginId(accessToken);
+        } catch (JwtException | IllegalArgumentException exception) {
+            throw new CustomException(ErrorCode.INVALID_ACCESS_TOKEN);
+        }
+
         User user = userRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        userRefreshTokenRepository.deleteByUser_UserId(user.getUserId());
+        userRefreshTokenRepository.findByUser_UserId(user.getUserId())
+                .ifPresent(userRefreshTokenRepository::delete);
 
         return new MessageResponse("로그아웃되었습니다.");
     }

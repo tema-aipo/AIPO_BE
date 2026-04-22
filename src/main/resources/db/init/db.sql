@@ -34,6 +34,69 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_user_investment_current
 ON user_investment_type(user_id)
 WHERE is_current = TRUE;
 
+CREATE TABLE IF NOT EXISTS investment_profile_question (
+    question_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    version INT NOT NULL,
+    question_order INT NOT NULL,
+    question_text VARCHAR(255) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (question_id),
+    CONSTRAINT uk_investment_profile_question_version_order UNIQUE (version, question_order)
+);
+
+CREATE TABLE IF NOT EXISTS investment_profile_option (
+    option_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    question_id BIGINT NOT NULL,
+    option_order INT NOT NULL,
+    option_text VARCHAR(255) NOT NULL,
+    score INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (option_id),
+    CONSTRAINT uk_investment_profile_option_question_order UNIQUE (question_id, option_order),
+    CONSTRAINT fk_investment_profile_option_question
+        FOREIGN KEY (question_id) REFERENCES investment_profile_question(question_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_investment_profile_result (
+    result_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    user_id BIGINT NOT NULL,
+    version INT NOT NULL,
+    test_status VARCHAR(20) NOT NULL,
+    profile_type VARCHAR(20) NULL,
+    total_score INT NULL,
+    is_current BOOLEAN NOT NULL DEFAULT TRUE,
+    calculated_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (result_id),
+    CONSTRAINT fk_user_investment_profile_result_user
+        FOREIGN KEY (user_id) REFERENCES app_user(user_id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_user_investment_profile_result_current
+ON user_investment_profile_result(user_id)
+WHERE is_current = TRUE;
+
+CREATE TABLE IF NOT EXISTS user_investment_profile_answer (
+    answer_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    result_id BIGINT NOT NULL,
+    question_id BIGINT NOT NULL,
+    option_id BIGINT NOT NULL,
+    selected_score INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (answer_id),
+    CONSTRAINT uk_user_investment_profile_answer_result_question UNIQUE (result_id, question_id),
+    CONSTRAINT fk_user_investment_profile_answer_result
+        FOREIGN KEY (result_id) REFERENCES user_investment_profile_result(result_id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_investment_profile_answer_question
+        FOREIGN KEY (question_id) REFERENCES investment_profile_question(question_id),
+    CONSTRAINT fk_user_investment_profile_answer_option
+        FOREIGN KEY (option_id) REFERENCES investment_profile_option(option_id)
+);
+
 CREATE TABLE IF NOT EXISTS user_refresh_token (
     refresh_token_id BIGINT GENERATED ALWAYS AS IDENTITY,
     user_id BIGINT NOT NULL,
@@ -42,6 +105,19 @@ CREATE TABLE IF NOT EXISTS user_refresh_token (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (refresh_token_id),
     CONSTRAINT fk_refresh_token_user
+        FOREIGN KEY (user_id) REFERENCES app_user(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_notification_setting (
+    notification_setting_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    user_id BIGINT NOT NULL,
+    subscription_schedule_notification_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    listing_date_notification_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (notification_setting_id),
+    CONSTRAINT uk_user_notification_setting_user UNIQUE (user_id),
+    CONSTRAINT fk_user_notification_setting_user
         FOREIGN KEY (user_id) REFERENCES app_user(user_id) ON DELETE CASCADE
 );
 
@@ -209,6 +285,83 @@ CREATE TABLE IF NOT EXISTS ipo_view_log (
         FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
 );
 
+CREATE TABLE IF NOT EXISTS chat_session (
+    chat_session_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    user_id BIGINT NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at TIMESTAMP NULL,
+    last_message_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (chat_session_id),
+    CONSTRAINT fk_chat_session_user
+        FOREIGN KEY (user_id) REFERENCES app_user(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_message (
+    chat_message_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    chat_session_id BIGINT NOT NULL,
+    message_role VARCHAR(20) NOT NULL,
+    message_type VARCHAR(20) NOT NULL,
+    content TEXT NOT NULL,
+    sequence_no INT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'COMPLETED',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (chat_message_id),
+    CONSTRAINT fk_chat_message_session
+        FOREIGN KEY (chat_session_id) REFERENCES chat_session(chat_session_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS chat_feedback (
+    chat_feedback_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    chat_message_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    feedback_type VARCHAR(20) NOT NULL,
+    reason_code VARCHAR(50) NULL,
+    reason_detail VARCHAR(255) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (chat_feedback_id),
+    CONSTRAINT uk_chat_feedback_message_user UNIQUE (chat_message_id, user_id),
+    CONSTRAINT fk_chat_feedback_message
+        FOREIGN KEY (chat_message_id) REFERENCES chat_message(chat_message_id) ON DELETE CASCADE,
+    CONSTRAINT fk_chat_feedback_user
+        FOREIGN KEY (user_id) REFERENCES app_user(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_recommended_question (
+    recommended_question_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    question_text VARCHAR(255) NOT NULL,
+    display_order INT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    category VARCHAR(30) NULL,
+    target_investment_type VARCHAR(30) NULL,
+    source_type VARCHAR(20) NOT NULL DEFAULT 'DEFAULT',
+    stock_id BIGINT NULL,
+    valid_from TIMESTAMP NULL,
+    valid_to TIMESTAMP NULL,
+    target_user_id BIGINT NULL,
+    priority_score INT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (recommended_question_id),
+    CONSTRAINT fk_chat_recommended_question_stock
+        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id),
+    CONSTRAINT fk_chat_recommended_question_user
+        FOREIGN KEY (target_user_id) REFERENCES app_user(user_id)
+);
+
+DELETE FROM chat_feedback;
+DELETE FROM chat_message;
+DELETE FROM chat_session;
+DELETE FROM chat_recommended_question;
+DELETE FROM user_investment_profile_answer;
+DELETE FROM user_investment_profile_result;
+DELETE FROM investment_profile_option;
+DELETE FROM investment_profile_question;
+DELETE FROM user_notification_setting;
 DELETE FROM ipo_view_log;
 DELETE FROM user_favorite_stock;
 DELETE FROM ipo_deposit_info;
@@ -228,6 +381,7 @@ INSERT INTO app_user (
     user_id, login_id, password_hash, user_name, email, role, user_status,
     created_at, updated_at
 ) OVERRIDING SYSTEM VALUE VALUES
+    -- seed test account password: test1234
     (
         1, 'demo-user', '$2a$10$5lbUnT8wA2VerP5Zc4Yffe8bYnSYM5jVhU4dgjYZBU46F4xVvtPbi',
         '데모사용자', 'demo-user@aipo.test', 'USER', 'ACTIVE',
@@ -244,6 +398,62 @@ INSERT INTO user_investment_type (
 ) OVERRIDING SYSTEM VALUE VALUES
     (1, 1, 'BALANCED', 67, TRUE, 'TEST', '2026-04-01 09:10:00', '2026-04-01 09:10:00'),
     (2, 2, 'AGGRESSIVE', 82, TRUE, 'TEST', '2026-04-02 09:10:00', '2026-04-02 09:10:00');
+
+INSERT INTO app_user (
+    user_id, login_id, password_hash, user_name, email, role, user_status,
+    created_at, updated_at
+) OVERRIDING SYSTEM VALUE VALUES
+    (
+        3, 'admin-user', '$2a$10$5lbUnT8wA2VerP5Zc4Yffe8bYnSYM5jVhU4dgjYZBU46F4xVvtPbi',
+        'admin-user', 'admin-user@aipo.test', 'ADMIN', 'ACTIVE',
+        '2026-04-03 09:00:00', '2026-04-21 09:00:00'
+    );
+
+INSERT INTO user_notification_setting (
+    notification_setting_id, user_id, subscription_schedule_notification_enabled,
+    listing_date_notification_enabled, created_at, updated_at
+) OVERRIDING SYSTEM VALUE VALUES
+    (1, 1, TRUE, TRUE, '2026-04-01 09:15:00', '2026-04-21 09:15:00'),
+    (2, 2, TRUE, FALSE, '2026-04-02 09:15:00', '2026-04-21 09:15:00'),
+    (3, 3, TRUE, TRUE, '2026-04-03 09:15:00', '2026-04-21 09:15:00');
+
+INSERT INTO investment_profile_question (
+    question_id, version, question_order, question_text, is_active, created_at, updated_at
+) OVERRIDING SYSTEM VALUE VALUES
+    (1, 1, 1, 'IPO 공모주 청약 참여 경험', TRUE, '2026-04-21 09:30:00', '2026-04-21 09:30:00'),
+    (2, 1, 2, '상장 첫날 하락 시 대응', TRUE, '2026-04-21 09:31:00', '2026-04-21 09:31:00'),
+    (3, 1, 3, '투자설명서 검토 수준', TRUE, '2026-04-21 09:32:00', '2026-04-21 09:32:00'),
+    (4, 1, 4, '고위험·고수익 IPO 선호', TRUE, '2026-04-21 09:33:00', '2026-04-21 09:33:00'),
+    (5, 1, 5, 'IPO 변동성 감수 의향', TRUE, '2026-04-21 09:34:00', '2026-04-21 09:34:00'),
+    (6, 1, 6, 'IPO 비중 허용 한도', TRUE, '2026-04-21 09:35:00', '2026-04-21 09:35:00');
+
+INSERT INTO investment_profile_option (
+    option_id, question_id, option_order, option_text, score, created_at, updated_at
+) OVERRIDING SYSTEM VALUE VALUES
+    (101, 1, 1, '전혀 없음', 0, '2026-04-21 09:40:00', '2026-04-21 09:40:00'),
+    (102, 1, 2, '1~2회 참여', 1, '2026-04-21 09:40:00', '2026-04-21 09:40:00'),
+    (103, 1, 3, '3~5회 참여', 2, '2026-04-21 09:40:00', '2026-04-21 09:40:00'),
+    (104, 1, 4, '6회 이상 정기적 참여', 3, '2026-04-21 09:40:00', '2026-04-21 09:40:00'),
+    (201, 2, 1, '즉시 매도', 0, '2026-04-21 09:41:00', '2026-04-21 09:41:00'),
+    (202, 2, 2, '상황 지켜봄', 1, '2026-04-21 09:41:00', '2026-04-21 09:41:00'),
+    (203, 2, 3, '추가 매수 고려', 2, '2026-04-21 09:41:00', '2026-04-21 09:41:00'),
+    (204, 2, 4, '장기 보유 전환', 3, '2026-04-21 09:41:00', '2026-04-21 09:41:00'),
+    (301, 3, 1, '거의 보지 않음', 0, '2026-04-21 09:42:00', '2026-04-21 09:42:00'),
+    (302, 3, 2, '요약본만 확인', 1, '2026-04-21 09:42:00', '2026-04-21 09:42:00'),
+    (303, 3, 3, '주요 재무·공모 구조 확인', 2, '2026-04-21 09:42:00', '2026-04-21 09:42:00'),
+    (304, 3, 4, '산업 전망·경쟁사 분석까지', 3, '2026-04-21 09:42:00', '2026-04-21 09:42:00'),
+    (401, 4, 1, '전혀 동의하지 않음', 0, '2026-04-21 09:43:00', '2026-04-21 09:43:00'),
+    (402, 4, 2, '동의하지 않음', 1, '2026-04-21 09:43:00', '2026-04-21 09:43:00'),
+    (403, 4, 3, '동의함', 2, '2026-04-21 09:43:00', '2026-04-21 09:43:00'),
+    (404, 4, 4, '매우 동의함', 3, '2026-04-21 09:43:00', '2026-04-21 09:43:00'),
+    (501, 5, 1, '전혀 동의하지 않음', 0, '2026-04-21 09:44:00', '2026-04-21 09:44:00'),
+    (502, 5, 2, '동의하지 않음', 1, '2026-04-21 09:44:00', '2026-04-21 09:44:00'),
+    (503, 5, 3, '동의함', 2, '2026-04-21 09:44:00', '2026-04-21 09:44:00'),
+    (504, 5, 4, '매우 동의함', 3, '2026-04-21 09:44:00', '2026-04-21 09:44:00'),
+    (601, 6, 1, '전혀 동의하지 않음', 0, '2026-04-21 09:45:00', '2026-04-21 09:45:00'),
+    (602, 6, 2, '동의하지 않음', 1, '2026-04-21 09:45:00', '2026-04-21 09:45:00'),
+    (603, 6, 3, '동의함', 2, '2026-04-21 09:45:00', '2026-04-21 09:45:00'),
+    (604, 6, 4, '매우 동의함', 3, '2026-04-21 09:45:00', '2026-04-21 09:45:00');
 
 INSERT INTO ipo_stock (
     stock_id, stock_name, company_name, stock_code, market_type, one_line_description,
@@ -356,3 +566,24 @@ INSERT INTO user_favorite_stock (
     (9001, 1, 101, 1, 1, 'Y', '2026-04-21 11:00:00'),
     (9002, 1, 102, 2, 2, 'Y', '2026-04-21 11:05:00'),
     (9003, 2, 103, 1, 1, 'Y', '2026-04-21 11:10:00');
+
+INSERT INTO chat_recommended_question (
+    recommended_question_id, question_text, display_order, is_active, category,
+    target_investment_type, source_type, stock_id, valid_from, valid_to, target_user_id,
+    priority_score, created_at, updated_at
+) OVERRIDING SYSTEM VALUE VALUES
+    (
+        10001, '이번 주 청약 일정 알려줘', 1, TRUE, 'SCHEDULE',
+        NULL, 'DEFAULT', NULL, NULL, NULL, NULL,
+        100, '2026-04-21 12:00:00', '2026-04-21 12:00:00'
+    ),
+    (
+        10002, '요즘 인기 있는 공모주가 뭐야?', 2, TRUE, 'POPULAR',
+        NULL, 'DEFAULT', NULL, NULL, NULL, NULL,
+        90, '2026-04-21 12:01:00', '2026-04-21 12:01:00'
+    ),
+    (
+        10003, '공모주 투자 위험요인 정리해줘', 3, TRUE, 'RISK',
+        NULL, 'DEFAULT', NULL, NULL, NULL, NULL,
+        80, '2026-04-21 12:02:00', '2026-04-21 12:02:00'
+    );

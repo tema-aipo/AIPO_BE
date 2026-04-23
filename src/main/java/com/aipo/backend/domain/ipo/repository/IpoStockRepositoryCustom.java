@@ -3,6 +3,7 @@ package com.aipo.backend.domain.ipo.repository;
 import com.aipo.backend.domain.home.dto.AttractivenessItem;
 import com.aipo.backend.domain.home.dto.FeaturedIpoItem;
 import com.aipo.backend.domain.home.dto.TrendingIpoItem;
+import com.aipo.backend.domain.ipo.dto.IpoListItem;
 
 import java.util.List;
 
@@ -23,4 +24,8 @@ public interface IpoStockRepositoryCustom {
 
     // 관심 종목순 매력지수 리스트 조회
     List<AttractivenessItem> findAttractivenessByFavorite();
+
+    List<IpoListItem> findIpoList(int page, int size, String keyword, String sort, String direction);
+
+    long countIpoList(String keyword);
 }

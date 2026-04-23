@@ -3,6 +3,7 @@ package com.aipo.backend.domain.ipo.repository;
 import com.aipo.backend.domain.home.dto.AttractivenessItem;
 import com.aipo.backend.domain.home.dto.FeaturedIpoItem;
 import com.aipo.backend.domain.home.dto.TrendingIpoItem;
+import com.aipo.backend.domain.ipo.dto.IpoListItem;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
@@ -11,6 +12,8 @@ import java.util.List;
 
 @Repository
 public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
+
+    private static final String DEFAULT_SORT_EXPRESSION = "s.subscriptionStartDate";
 
     @PersistenceContext
     private EntityManager em;
@@ -134,5 +137,92 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 """, AttractivenessItem.class)
                 .setMaxResults(10)
                 .getResultList();
+    }
+
+    @Override
+    public List<IpoListItem> findIpoList(int page, int size, String keyword, String sort, String direction) {
+        String orderBy = resolveSortExpression(sort) + " " + resolveDirection(direction) + ", s.id asc";
+        String keywordPattern = toKeywordPattern(keyword);
+
+        var query = em.createQuery("""
+                select new com.aipo.backend.domain.ipo.dto.IpoListItem(
+                    s.id,
+                    s.stockName,
+                    s.companyName,
+                    s.marketType,
+                    s.oneLineDescription,
+                    s.confirmedOfferPrice,
+                    s.subscriptionStartDate,
+                    s.subscriptionEndDate,
+                    s.listingDate,
+                    a.totalScore,
+                    s.recentGrowthScore
+                )
+                from IpoStock s
+                left join IpoAttractionScore a
+                    on a.stock = s
+                    and a.calculatedAt = (
+                        select max(a2.calculatedAt)
+                        from IpoAttractionScore a2
+                        where a2.stock = s
+                    )
+                where (:keyword is null
+                    or lower(s.stockName) like :keyword
+                    or lower(s.companyName) like :keyword)
+                order by %s
+                """.formatted(orderBy), IpoListItem.class);
+
+        query.setParameter("keyword", keywordPattern);
+        return query
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
+
+    @Override
+    public long countIpoList(String keyword) {
+        String keywordPattern = toKeywordPattern(keyword);
+
+        return em.createQuery("""
+                select count(s.id)
+                from IpoStock s
+                where (:keyword is null
+                    or lower(s.stockName) like :keyword
+                    or lower(s.companyName) like :keyword)
+                """, Long.class)
+                .setParameter("keyword", keywordPattern)
+                .getSingleResult();
+    }
+
+    private String resolveSortExpression(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return DEFAULT_SORT_EXPRESSION;
+        }
+
+        return switch (sort) {
+            case "subscriptionStartDate" -> "s.subscriptionStartDate";
+            case "subscriptionEndDate" -> "s.subscriptionEndDate";
+            case "listingDate" -> "s.listingDate";
+            case "confirmedOfferPrice" -> "s.confirmedOfferPrice";
+            case "attractionScore" -> "a.totalScore";
+            case "recentGrowthScore" -> "s.recentGrowthScore";
+            case "stockName" -> "s.stockName";
+            case "companyName" -> "s.companyName";
+            default -> DEFAULT_SORT_EXPRESSION;
+        };
+    }
+
+    private String resolveDirection(String direction) {
+        if ("desc".equalsIgnoreCase(direction)) {
+            return "desc";
+        }
+        return "asc";
+    }
+
+    private String toKeywordPattern(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return "%" + keyword.trim().toLowerCase() + "%";
     }
 }

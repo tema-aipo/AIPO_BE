@@ -77,7 +77,11 @@ class UserFavoriteStockControllerTest {
     void getFavorites_requiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/v1/users/me/favorites")
                         .with(SecurityMockMvcRequestPostProcessors.anonymous()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test

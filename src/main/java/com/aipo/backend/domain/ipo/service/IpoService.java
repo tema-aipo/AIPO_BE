@@ -19,6 +19,10 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class IpoService {
 
+    private static final int DEFAULT_PAGE = 0;
+    private static final int DEFAULT_SIZE = 20;
+    private static final int MAX_SIZE = 50;
+
     private final IpoStockRepository ipoStockRepository;
     private final IpoLeadManagerRepository ipoLeadManagerRepository;
     private final IpoAttractionScoreRepository ipoAttractionScoreRepository;
@@ -29,6 +33,23 @@ public class IpoService {
     private final IpoDepositInfoRepository ipoDepositInfoRepository;
     private final IpoOfferingInfoRepository ipoOfferingInfoRepository;
     private final UserFavoriteStockRepository userFavoriteStockRepository;
+
+    public IpoListResponse getIpos(int page, int size, String keyword, String sort, String direction) {
+        int normalizedPage = Math.max(page, DEFAULT_PAGE);
+        int normalizedSize = normalizeSize(size);
+        String normalizedKeyword = normalizeKeyword(keyword);
+
+        List<IpoListItem> items = ipoStockRepository.findIpoList(
+                normalizedPage,
+                normalizedSize,
+                normalizedKeyword,
+                sort,
+                direction
+        );
+        long totalElements = ipoStockRepository.countIpoList(normalizedKeyword);
+
+        return IpoListResponse.of(items, normalizedPage, normalizedSize, totalElements);
+    }
 
     public IpoDetailResponse getIpoDetail(Long ipoId, Long userId) {
         IpoStock ipoStock = ipoStockRepository.findById(ipoId)
@@ -195,5 +216,19 @@ public class IpoService {
         }
 
         return CompetitionTab.valueOf(competitionTabType.name());
+    }
+
+    private int normalizeSize(int size) {
+        if (size <= 0) {
+            return DEFAULT_SIZE;
+        }
+        return Math.min(size, MAX_SIZE);
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return keyword.trim();
     }
 }

@@ -8,6 +8,8 @@ import com.aipo.backend.domain.ipo.dto.DateRange;
 import com.aipo.backend.domain.ipo.dto.DemandForecastSection;
 import com.aipo.backend.domain.ipo.dto.DepositInfoItem;
 import com.aipo.backend.domain.ipo.dto.IpoDetailResponse;
+import com.aipo.backend.domain.ipo.dto.IpoListItem;
+import com.aipo.backend.domain.ipo.dto.IpoListResponse;
 import com.aipo.backend.domain.ipo.dto.OfferingInfoSection;
 import com.aipo.backend.domain.ipo.dto.ScheduleSection;
 import com.aipo.backend.domain.ipo.dto.SubscriptionCompetitionSection;
@@ -52,6 +54,54 @@ class IpoControllerTest {
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
+
+    @Test
+    @DisplayName("공모주 목록 조회 시 페이지 구조를 반환한다")
+    void getIpos_success() throws Exception {
+        IpoListResponse response = new IpoListResponse(
+                List.of(new IpoListItem(
+                        1L,
+                        "AIPO",
+                        "에이아이피오",
+                        "KOSDAQ",
+                        "공시문서 분석 기업",
+                        new BigDecimal("15000.00"),
+                        LocalDate.of(2026, 4, 28),
+                        LocalDate.of(2026, 4, 29),
+                        LocalDate.of(2026, 5, 8),
+                        new BigDecimal("87.5"),
+                        91
+                )),
+                0,
+                20,
+                1L,
+                1,
+                false
+        );
+
+        when(ipoService.getIpos(0, 20, "에이", "subscriptionStartDate", "asc")).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/ipos")
+                        .param("page", "0")
+                        .param("size", "20")
+                        .param("keyword", "에이")
+                        .param("sort", "subscriptionStartDate")
+                        .param("direction", "asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items[0].ipoId").value(1L))
+                .andExpect(jsonPath("$.items[0].stockName").value("AIPO"))
+                .andExpect(jsonPath("$.items[0].companyName").value("에이아이피오"))
+                .andExpect(jsonPath("$.items[0].marketType").value("KOSDAQ"))
+                .andExpect(jsonPath("$.items[0].confirmedOfferPrice").value(15000.00))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1L))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.hasNext").value(false));
+
+        verify(ipoService).getIpos(0, 20, "에이", "subscriptionStartDate", "asc");
+    }
 
     @Test
     @DisplayName("정상 조회 시 200과 상세 구조를 반환한다")

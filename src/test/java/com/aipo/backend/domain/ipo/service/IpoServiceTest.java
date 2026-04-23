@@ -2,6 +2,8 @@ package com.aipo.backend.domain.ipo.service;
 
 import com.aipo.backend.domain.ipo.dto.CompetitionTab;
 import com.aipo.backend.domain.ipo.dto.IpoDetailResponse;
+import com.aipo.backend.domain.ipo.dto.IpoListItem;
+import com.aipo.backend.domain.ipo.dto.IpoListResponse;
 import com.aipo.backend.domain.ipo.entity.CompetitionTabType;
 import com.aipo.backend.domain.ipo.entity.IpoAttractionReason;
 import com.aipo.backend.domain.ipo.entity.IpoAttractionScore;
@@ -82,6 +84,40 @@ class IpoServiceTest {
 
     @InjectMocks
     private IpoService ipoService;
+
+    @Test
+    @DisplayName("공모주 목록 조회 시 페이지 정보를 조합해 반환한다")
+    void getIpos_success() {
+        List<IpoListItem> items = List.of(new IpoListItem(
+                1L,
+                "AIPO",
+                "에이아이피오",
+                "KOSDAQ",
+                "공시문서 분석 기업",
+                new BigDecimal("15000.00"),
+                LocalDate.of(2026, 4, 28),
+                LocalDate.of(2026, 4, 29),
+                LocalDate.of(2026, 5, 8),
+                new BigDecimal("87.5"),
+                91
+        ));
+
+        when(ipoStockRepository.findIpoList(0, 20, "에이", "subscriptionStartDate", "asc"))
+                .thenReturn(items);
+        when(ipoStockRepository.countIpoList("에이")).thenReturn(21L);
+
+        IpoListResponse response = ipoService.getIpos(0, 20, " 에이 ", "subscriptionStartDate", "asc");
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).ipoId()).isEqualTo(1L);
+        assertThat(response.page()).isEqualTo(0);
+        assertThat(response.size()).isEqualTo(20);
+        assertThat(response.totalElements()).isEqualTo(21L);
+        assertThat(response.totalPages()).isEqualTo(2);
+        assertThat(response.hasNext()).isTrue();
+        verify(ipoStockRepository).findIpoList(0, 20, "에이", "subscriptionStartDate", "asc");
+        verify(ipoStockRepository).countIpoList("에이");
+    }
 
     @Test
     @DisplayName("공모주 상세 조회를 정상적으로 조립한다")

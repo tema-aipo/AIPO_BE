@@ -12,9 +12,15 @@ import com.aipo.backend.domain.user.service.MyPageService;
 import com.aipo.backend.domain.user.service.NotificationSettingService;
 import com.aipo.backend.domain.user.service.UserProfileService;
 import com.aipo.backend.global.config.OpenApiConfig;
+import com.aipo.backend.global.exception.ErrorResponse;
 import com.aipo.backend.global.security.service.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/users/me")
 @SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME_NAME)
+@Tag(name = "My Page", description = "마이페이지 및 사용자 설정 API")
 public class UserMyPageController {
 
     private final MyPageService myPageService;
@@ -37,7 +44,13 @@ public class UserMyPageController {
     private final UserProfileService userProfileService;
 
     @GetMapping("/mypage")
-    @Operation(summary = "마이페이지 기본 조회")
+    @Operation(summary = "마이페이지 기본 조회", description = "사용자 이름, 투자성향 요약, 전역 알림 설정, 고객지원/앱 정보를 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "마이페이지 조회 성공", content = @Content(schema = @Schema(implementation = MyPageResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "권한 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<MyPageResponse> getMyPage(
             @AuthenticationPrincipal CustomUserDetails principal
     ) {

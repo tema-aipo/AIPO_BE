@@ -7,6 +7,9 @@ import com.aipo.backend.domain.user.repository.UserRepository;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
 import com.aipo.backend.global.security.service.CustomUserDetails;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,6 +22,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
+@Tag(name = "관리자 - 문서", description = "문서 업로드, 목록 조회, 상세 조회")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/admin/documents")
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ public class AdminDocumentController {
     private final DocumentService documentService;
     private final UserRepository userRepository;
 
+    @Operation(summary = "문서 업로드")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<DocumentService.DocumentResponse> upload(
             @RequestParam("file") MultipartFile file,
@@ -39,6 +45,7 @@ public class AdminDocumentController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "문서 목록 조회")
     @GetMapping
     public Page<DocumentService.DocumentResponse> listDocuments(
             @RequestParam(required = false) DocumentStatus status,
@@ -50,6 +57,7 @@ public class AdminDocumentController {
         return documentService.listDocuments(status, keyword, pageable);
     }
 
+    @Operation(summary = "문서 상세 조회")
     @GetMapping("/{docId}")
     public DocumentService.DocumentResponse getDocument(@PathVariable Long docId) {
         return documentService.getDocument(docId);

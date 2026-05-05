@@ -4,6 +4,9 @@ import com.aipo.backend.domain.chatbot.entity.MessageRole;
 import com.aipo.backend.domain.chatbot.service.ChatbotLogService;
 import com.aipo.backend.domain.log.service.LoginLogService;
 import com.aipo.backend.domain.user.entity.UserRole;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -13,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
+@Tag(name = "관리자 - 로그", description = "로그인 로그, 챗봇 로그 조회")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/admin/logs")
 @RequiredArgsConstructor
@@ -21,6 +26,7 @@ public class AdminLogController {
     private final LoginLogService loginLogService;
     private final ChatbotLogService chatbotLogService;
 
+    @Operation(summary = "로그인 로그 조회")
     @GetMapping("/login")
     public Page<LoginLogService.LoginLogResponse> loginLogs(
             @RequestParam(required = false) String loginId,
@@ -34,6 +40,7 @@ public class AdminLogController {
         return loginLogService.getLogs(loginId, role, from, to, pageable);
     }
 
+    @Operation(summary = "챗봇 로그 조회")
     @GetMapping("/chatbot")
     public Page<ChatbotLogService.ChatbotLogResponse> chatbotLogs(
             @RequestParam(required = false) String sessionId,

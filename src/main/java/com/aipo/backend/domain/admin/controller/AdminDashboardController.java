@@ -8,6 +8,9 @@ import com.aipo.backend.domain.pipeline.repository.PipelineJobRepository;
 import com.aipo.backend.domain.user.entity.UserRole;
 import com.aipo.backend.domain.user.entity.UserStatus;
 import com.aipo.backend.domain.user.repository.UserRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 
+@Tag(name = "관리자 - 대시보드", description = "대시보드 통계 조회")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/admin/dashboard")
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ public class AdminDashboardController {
     private final DocumentRepository documentRepository;
     private final PipelineJobRepository pipelineJobRepository;
 
+    @Operation(summary = "대시보드 통계 조회")
     @GetMapping("/stats")
     public StatsResponse stats() {
         long totalUsers = userRepository.countByRole(UserRole.USER);

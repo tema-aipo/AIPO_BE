@@ -9,6 +9,8 @@ import com.aipo.backend.domain.user.repository.UserRepository;
 import com.aipo.backend.domain.auth.entity.UserRefreshToken;
 import com.aipo.backend.domain.auth.repository.UserRefreshTokenRepository;
 import com.aipo.backend.global.security.jwt.JwtTokenProvider;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,6 +18,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "관리자 인증", description = "관리자 로그인")
 @RestController
 @RequestMapping("/api/v1/admin/auth")
 @RequiredArgsConstructor
@@ -27,6 +30,7 @@ public class AdminAuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final LoginLogService loginLogService;
 
+    @Operation(summary = "관리자 로그인")
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         authenticationManager.authenticate(

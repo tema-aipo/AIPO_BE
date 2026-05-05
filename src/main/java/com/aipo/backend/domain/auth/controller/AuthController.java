@@ -2,10 +2,14 @@ package com.aipo.backend.domain.auth.controller;
 
 import com.aipo.backend.domain.auth.dto.*;
 import com.aipo.backend.domain.auth.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "인증", description = "회원가입, 로그인, 토큰 재발급, 로그아웃")
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -13,21 +17,25 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @Operation(summary = "회원가입")
     @PostMapping("/register")
     public RegisterResponse register(@Valid @RequestBody RegisterRequest request) {
         return authService.register(request);
     }
 
+    @Operation(summary = "로그인")
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
     }
 
+    @Operation(summary = "액세스 토큰 재발급")
     @PostMapping("/reissue")
     public ReissueResponse reissue(@Valid @RequestBody ReissueRequest request) {
         return authService.reissue(request);
     }
 
+    @Operation(summary = "로그아웃", security = @SecurityRequirement(name = "bearerAuth"))
     @PostMapping("/logout")
     public MessageResponse logout(@RequestHeader("Authorization") String authorizationHeader) {
         return authService.logout(authorizationHeader);

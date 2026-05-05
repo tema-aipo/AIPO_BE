@@ -3,12 +3,17 @@ package com.aipo.backend.domain.user.controller;
 import com.aipo.backend.domain.user.entity.User;
 import com.aipo.backend.domain.user.entity.UserRole;
 import com.aipo.backend.domain.user.repository.UserRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "사용자", description = "내 정보 조회")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor

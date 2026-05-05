@@ -1,5 +1,8 @@
 package com.aipo.backend.domain.admin.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,6 +14,8 @@ import java.lang.management.ManagementFactory;
 import java.sql.Connection;
 import java.time.LocalDateTime;
 
+@Tag(name = "관리자 - 시스템", description = "시스템 상태 조회")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/admin/system")
 public class AdminSystemController {
@@ -21,6 +26,7 @@ public class AdminSystemController {
         this.dataSource = dataSource;
     }
 
+    @Operation(summary = "시스템 상태 조회")
     @GetMapping("/status")
     public SystemStatusResponse status() {
         boolean dbOk = checkDatabase();

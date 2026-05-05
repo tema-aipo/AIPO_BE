@@ -4,6 +4,9 @@ import com.aipo.backend.domain.user.entity.User;
 import com.aipo.backend.domain.user.entity.UserRole;
 import com.aipo.backend.domain.user.entity.UserStatus;
 import com.aipo.backend.domain.user.repository.UserRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -18,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
+@Tag(name = "관리자 - 사용자 관리", description = "사용자 목록 조회, 상세 조회, 상태 변경")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @RequiredArgsConstructor
@@ -25,6 +30,7 @@ public class AdminUserController {
 
     private final UserRepository userRepository;
 
+    @Operation(summary = "사용자 목록 조회")
     @GetMapping
     public Page<UserSummaryResponse> listUsers(
             @RequestParam(required = false) String keyword,
@@ -37,6 +43,7 @@ public class AdminUserController {
                 .map(UserSummaryResponse::from);
     }
 
+    @Operation(summary = "사용자 상세 조회")
     @GetMapping("/{userId}")
     public UserDetailResponse getUser(@PathVariable Long userId) {
         User user = userRepository.findById(userId)
@@ -44,6 +51,7 @@ public class AdminUserController {
         return UserDetailResponse.from(user);
     }
 
+    @Operation(summary = "사용자 상태 변경")
     @PatchMapping("/{userId}/status")
     public ResponseEntity<UserDetailResponse> updateStatus(
             @PathVariable Long userId,

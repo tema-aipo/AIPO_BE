@@ -5,6 +5,9 @@ import com.aipo.backend.domain.pipeline.entity.PipelineJobStatus;
 import com.aipo.backend.domain.pipeline.repository.PipelineJobRepository;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +19,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
+@Tag(name = "관리자 - 파이프라인", description = "파이프라인 작업 조회 및 취소")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/admin/pipeline")
 @RequiredArgsConstructor
@@ -23,6 +28,7 @@ public class AdminPipelineController {
 
     private final PipelineJobRepository pipelineJobRepository;
 
+    @Operation(summary = "파이프라인 작업 목록 조회")
     @GetMapping("/jobs")
     public Page<PipelineJobResponse> listJobs(
             @RequestParam(required = false) PipelineJobStatus status,
@@ -35,6 +41,7 @@ public class AdminPipelineController {
                 .map(PipelineJobResponse::from);
     }
 
+    @Operation(summary = "파이프라인 작업 상세 조회")
     @GetMapping("/jobs/{jobId}")
     public PipelineJobResponse getJob(@PathVariable Long jobId) {
         PipelineJob job = pipelineJobRepository.findById(jobId)
@@ -42,6 +49,7 @@ public class AdminPipelineController {
         return PipelineJobResponse.from(job);
     }
 
+    @Operation(summary = "파이프라인 상태 요약")
     @GetMapping("/status")
     public PipelineSummaryResponse summary() {
         long queued = pipelineJobRepository.countByJobStatus(PipelineJobStatus.QUEUED);
@@ -52,6 +60,7 @@ public class AdminPipelineController {
         return new PipelineSummaryResponse(queued, running, completed, failed, cancelled);
     }
 
+    @Operation(summary = "파이프라인 작업 취소")
     @PostMapping("/jobs/{jobId}/cancel")
     public ResponseEntity<PipelineJobResponse> cancelJob(@PathVariable Long jobId) {
         PipelineJob job = pipelineJobRepository.findById(jobId)

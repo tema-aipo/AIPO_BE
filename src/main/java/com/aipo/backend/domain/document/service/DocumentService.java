@@ -72,7 +72,8 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public DocumentResponse getDocument(Long docId) {
         Document document = documentRepository.findById(docId)
-                .orElseThrow(() -> new IllegalArgumentException("문서를 찾을 수 없습니다."));
+                .orElseThrow(() -> new com.aipo.backend.global.exception.CustomException(
+                        com.aipo.backend.global.exception.ErrorCode.DOCUMENT_NOT_FOUND));
         return DocumentResponse.from(document);
     }
 

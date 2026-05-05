@@ -3,6 +3,8 @@ package com.aipo.backend.domain.admin.controller;
 import com.aipo.backend.domain.pipeline.entity.PipelineJob;
 import com.aipo.backend.domain.pipeline.entity.PipelineJobStatus;
 import com.aipo.backend.domain.pipeline.repository.PipelineJobRepository;
+import com.aipo.backend.global.exception.CustomException;
+import com.aipo.backend.global.exception.ErrorCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +38,7 @@ public class AdminPipelineController {
     @GetMapping("/jobs/{jobId}")
     public PipelineJobResponse getJob(@PathVariable Long jobId) {
         PipelineJob job = pipelineJobRepository.findById(jobId)
-                .orElseThrow(() -> new IllegalArgumentException("파이프라인 작업을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.PIPELINE_JOB_NOT_FOUND));
         return PipelineJobResponse.from(job);
     }
 
@@ -53,10 +55,11 @@ public class AdminPipelineController {
     @PostMapping("/jobs/{jobId}/cancel")
     public ResponseEntity<PipelineJobResponse> cancelJob(@PathVariable Long jobId) {
         PipelineJob job = pipelineJobRepository.findById(jobId)
-                .orElseThrow(() -> new IllegalArgumentException("파이프라인 작업을 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.PIPELINE_JOB_NOT_FOUND));
 
         if (job.getJobStatus() != PipelineJobStatus.QUEUED && job.getJobStatus() != PipelineJobStatus.RUNNING) {
-            throw new IllegalStateException("취소할 수 없는 상태입니다: " + job.getJobStatus());
+            throw new CustomException(ErrorCode.PIPELINE_JOB_CANCEL_DENIED,
+                    "취소할 수 없는 상태입니다: " + job.getJobStatus());
         }
         job.cancel();
         pipelineJobRepository.save(job);

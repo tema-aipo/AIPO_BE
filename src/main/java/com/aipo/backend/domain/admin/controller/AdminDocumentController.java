@@ -4,6 +4,8 @@ import com.aipo.backend.domain.document.entity.DocumentStatus;
 import com.aipo.backend.domain.document.service.DocumentService;
 import com.aipo.backend.domain.user.entity.User;
 import com.aipo.backend.domain.user.repository.UserRepository;
+import com.aipo.backend.global.exception.CustomException;
+import com.aipo.backend.global.exception.ErrorCode;
 import com.aipo.backend.global.security.service.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,7 +33,7 @@ public class AdminDocumentController {
             @AuthenticationPrincipal CustomUserDetails userDetails) throws IOException {
 
         User uploader = userRepository.findByLoginId(userDetails.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         DocumentService.DocumentResponse response = documentService.upload(uploader, file);
         return ResponseEntity.ok(response);

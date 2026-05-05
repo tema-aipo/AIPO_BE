@@ -1,5 +1,10 @@
 package com.aipo.backend.domain.admin.controller;
 
+import com.aipo.backend.domain.chatbot.service.ChatbotLogService;
+import com.aipo.backend.domain.document.entity.DocumentStatus;
+import com.aipo.backend.domain.document.repository.DocumentRepository;
+import com.aipo.backend.domain.pipeline.entity.PipelineJobStatus;
+import com.aipo.backend.domain.pipeline.repository.PipelineJobRepository;
 import com.aipo.backend.domain.user.entity.UserRole;
 import com.aipo.backend.domain.user.entity.UserStatus;
 import com.aipo.backend.domain.user.repository.UserRepository;
@@ -18,6 +23,9 @@ import java.time.LocalDateTime;
 public class AdminDashboardController {
 
     private final UserRepository userRepository;
+    private final ChatbotLogService chatbotLogService;
+    private final DocumentRepository documentRepository;
+    private final PipelineJobRepository pipelineJobRepository;
 
     @GetMapping("/stats")
     public StatsResponse stats() {
@@ -28,16 +36,54 @@ public class AdminDashboardController {
         long newUsersLast7Days = userRepository.countByRoleAndCreatedAtAfter(
                 UserRole.USER, LocalDateTime.now().minusDays(7));
 
-        return new StatsResponse(totalUsers, activeUsers, suspendedUsers, withdrawnUsers, newUsersLast7Days);
+        ChatbotLogService.ChatbotStats chatbotStats = chatbotLogService.getStats();
+
+        long totalDocuments = documentRepository.count();
+        long processingDocuments = documentRepository.countByDocStatus(DocumentStatus.PROCESSING);
+        long failedDocuments = documentRepository.countByDocStatus(DocumentStatus.FAILED);
+
+        long runningPipelineJobs = pipelineJobRepository.countByJobStatus(PipelineJobStatus.RUNNING);
+        long failedPipelineJobs = pipelineJobRepository.countByJobStatus(PipelineJobStatus.FAILED);
+
+        return new StatsResponse(
+                new UserStats(totalUsers, activeUsers, suspendedUsers, withdrawnUsers, newUsersLast7Days),
+                chatbotStats,
+                new DocumentStats(totalDocuments, processingDocuments, failedDocuments),
+                new PipelineStats(runningPipelineJobs, failedPipelineJobs)
+        );
     }
 
     @Getter
     @AllArgsConstructor
     static class StatsResponse {
-        private long totalUsers;
-        private long activeUsers;
-        private long suspendedUsers;
-        private long withdrawnUsers;
-        private long newUsersLast7Days;
+        private UserStats users;
+        private ChatbotLogService.ChatbotStats chatbot;
+        private DocumentStats documents;
+        private PipelineStats pipeline;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    static class UserStats {
+        private long total;
+        private long active;
+        private long suspended;
+        private long withdrawn;
+        private long newLast7Days;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    static class DocumentStats {
+        private long total;
+        private long processing;
+        private long failed;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    static class PipelineStats {
+        private long running;
+        private long failed;
     }
 }

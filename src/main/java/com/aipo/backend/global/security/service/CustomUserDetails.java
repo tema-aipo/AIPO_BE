@@ -1,4 +1,41 @@
 package com.aipo.backend.global.security.service;
 
-public class CustomUserDetails {
+import com.aipo.backend.domain.user.entity.User;
+import lombok.Getter;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import java.util.Collection;
+import java.util.List;
+
+@Getter
+public class CustomUserDetails implements UserDetails {
+
+    private final Long userId;
+    private final String loginId;
+    private final String passwordHash;
+    private final Collection<? extends GrantedAuthority> authorities;
+
+    public CustomUserDetails(User user) {
+        this.userId = user.getUserId();
+        this.loginId = user.getLoginId();
+        this.passwordHash = user.getPasswordHash();
+        this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return authorities;
+    }
+
+    @Override
+    public String getPassword() {
+        return passwordHash;
+    }
+
+    @Override
+    public String getUsername() {
+        return loginId;
+    }
 }

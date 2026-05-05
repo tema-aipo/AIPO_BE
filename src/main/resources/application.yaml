@@ -21,3 +21,10 @@ jwt:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+upload:
+  dir: ${UPLOAD_DIR:./uploads}

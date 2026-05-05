@@ -1,5 +1,7 @@
 package com.aipo.backend.domain.admin.controller;
 
+import com.aipo.backend.domain.chatbot.entity.MessageRole;
+import com.aipo.backend.domain.chatbot.service.ChatbotLogService;
 import com.aipo.backend.domain.log.service.LoginLogService;
 import com.aipo.backend.domain.user.entity.UserRole;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import java.time.LocalDateTime;
 public class AdminLogController {
 
     private final LoginLogService loginLogService;
+    private final ChatbotLogService chatbotLogService;
 
     @GetMapping("/login")
     public Page<LoginLogService.LoginLogResponse> loginLogs(
@@ -29,5 +32,18 @@ public class AdminLogController {
 
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "loggedInAt"));
         return loginLogService.getLogs(loginId, role, from, to, pageable);
+    }
+
+    @GetMapping("/chatbot")
+    public Page<ChatbotLogService.ChatbotLogResponse> chatbotLogs(
+            @RequestParam(required = false) String sessionId,
+            @RequestParam(required = false) MessageRole messageRole,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return chatbotLogService.getLogs(sessionId, messageRole, from, to, pageable);
     }
 }

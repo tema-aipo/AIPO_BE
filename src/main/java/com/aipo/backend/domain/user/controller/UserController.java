@@ -21,6 +21,7 @@ public class UserController {
 
     private final UserRepository userRepository;
 
+    @Operation(summary = "내 정보 조회")
     @GetMapping("/me")
     public MeResponse me(@AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
         User user = userRepository.findByLoginId(principal.getUsername())

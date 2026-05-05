@@ -35,7 +35,8 @@ public class AuthController {
         return authService.reissue(request);
     }
 
-    @Operation(summary = "로그아웃", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "로그아웃")
+    @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/logout")
     public MessageResponse logout(@RequestHeader("Authorization") String authorizationHeader) {
         return authService.logout(authorizationHeader);

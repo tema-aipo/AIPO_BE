@@ -38,4 +38,13 @@ public class IpoLeadManager {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    public static IpoLeadManager create(IpoStock stock, String managerName, Integer displayOrder) {
+        IpoLeadManager leadManager = new IpoLeadManager();
+        leadManager.stock = stock;
+        leadManager.managerName = managerName;
+        leadManager.displayOrder = displayOrder;
+        leadManager.createdAt = LocalDateTime.now();
+        return leadManager;
+    }
 }

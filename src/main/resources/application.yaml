@@ -21,3 +21,15 @@ jwt:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+external:
+  opendart:
+    api-key: ${OPENDART_API_KEY:}
+    base-url: https://opendart.fss.or.kr/api
+    sync:
+      enabled: ${OPENDART_SYNC_ENABLED:true}
+      collection-months: ${OPENDART_SYNC_COLLECTION_MONTHS:3}
+      cron: ${OPENDART_SYNC_CRON:0 0 3 * * *}
+      zone: Asia/Seoul
+  kind:
+    base-url: https://kind.krx.co.kr

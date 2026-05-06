@@ -45,4 +45,21 @@ public class IpoSchedule {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public static IpoSchedule create(IpoStock stock, ScheduleType scheduleType, LocalDate scheduleDate, String note) {
+        IpoSchedule schedule = new IpoSchedule();
+        schedule.stock = stock;
+        schedule.scheduleType = scheduleType;
+        schedule.scheduleDate = scheduleDate;
+        schedule.note = note;
+        schedule.createdAt = LocalDateTime.now();
+        schedule.updatedAt = schedule.createdAt;
+        return schedule;
+    }
+
+    public void updateDate(LocalDate scheduleDate, String note) {
+        this.scheduleDate = scheduleDate;
+        this.note = note;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

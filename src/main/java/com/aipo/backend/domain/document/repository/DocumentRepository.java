@@ -19,4 +19,6 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
             Pageable pageable);
 
     long countByDocStatus(DocumentStatus docStatus);
+
+    boolean existsByExternalId(String externalId);
 }

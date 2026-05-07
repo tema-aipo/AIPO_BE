@@ -38,6 +38,10 @@ public class Document {
     @Column(name = "content_type", length = 100)
     private String contentType;
 
+    /** DART 공시 수신번호(rcept_no) 등 외부 시스템의 고유 키. 크롤링 중복 방지에 사용된다. */
+    @Column(name = "external_id", length = 80, unique = true)
+    private String externalId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "doc_status", nullable = false, length = 20)
     private DocumentStatus docStatus;
@@ -59,6 +63,12 @@ public class Document {
         this.docStatus = DocumentStatus.UPLOADED;
         this.uploadedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public Document(User uploader, String originalName, String storedName,
+                    String uploadPath, Long fileSize, String contentType, String externalId) {
+        this(uploader, originalName, storedName, uploadPath, fileSize, contentType);
+        this.externalId = externalId;
     }
 
     public void updateStatus(DocumentStatus status) {

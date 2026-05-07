@@ -28,3 +28,11 @@ jwt:
 
 upload:
   dir: ${UPLOAD_DIR:./uploads}
+
+ipo:
+  crawler:
+    dart-api-key: ${DART_API_KEY:}
+    # 평일 오전 8시 KST (cron: 초 분 시 일 월 요일)
+    cron: "0 0 8 * * MON-FRI"
+    # 크롤링 기준: 오늘부터 며칠 전까지 공시를 조회할지 (기본 1일)
+    lookback-days: 1

@@ -1,6 +1,13 @@
 package com.aipo.backend.domain.auth.controller;
 
-import com.aipo.backend.domain.auth.dto.*;
+import com.aipo.backend.domain.auth.dto.LoginIdAvailabilityResponse;
+import com.aipo.backend.domain.auth.dto.LoginRequest;
+import com.aipo.backend.domain.auth.dto.LoginResponse;
+import com.aipo.backend.domain.auth.dto.MessageResponse;
+import com.aipo.backend.domain.auth.dto.RegisterRequest;
+import com.aipo.backend.domain.auth.dto.RegisterResponse;
+import com.aipo.backend.domain.auth.dto.ReissueRequest;
+import com.aipo.backend.domain.auth.dto.ReissueResponse;
 import com.aipo.backend.domain.auth.service.AuthService;
 import com.aipo.backend.global.config.OpenApiConfig;
 import com.aipo.backend.global.exception.ErrorResponse;
@@ -12,16 +19,37 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Auth", description = "회원가입, 로그인, 토큰 재발급 API")
 public class AuthController {
 
     private final AuthService authService;
+
+    @GetMapping("/login-id/availability")
+    @Operation(summary = "로그인 아이디 중복 확인", description = "회원가입 전에 loginId 사용 가능 여부를 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "아이디 사용 가능 여부 조회 성공", content = @Content(schema = @Schema(implementation = LoginIdAvailabilityResponse.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public LoginIdAvailabilityResponse checkLoginIdAvailability(
+            @RequestParam @NotBlank(message = "loginId는 비어 있을 수 없습니다.") String loginId
+    ) {
+        return authService.checkLoginIdAvailability(loginId);
+    }
 
     @PostMapping("/register")
     @Operation(summary = "회원가입", description = "신규 사용자를 등록하고 기본 투자성향/알림 설정을 초기화합니다.")
@@ -59,7 +87,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "로그아웃", description = "Authorization 헤더의 accessToken을 검증하고 저장된 refreshToken을 삭제합니다.")
+    @Operation(summary = "로그아웃", description = "Authorization 헤더의 accessToken을 검증하고 저장된 refreshToken을 제거합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "로그아웃 성공", content = @Content(schema = @Schema(implementation = MessageResponse.class))),
             @ApiResponse(responseCode = "401", description = "Authorization 헤더 누락 또는 유효하지 않은 accessToken", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
@@ -71,7 +99,3 @@ public class AuthController {
         return authService.logout(authorizationHeader);
     }
 }
-// NOTE:
-// 현재는 인증 핵심 API만 제공한다.
-// 추후 아이디 중복 체크, 이메일 인증, 비밀번호 재설정,
-// 공통 응답 포맷 적용에 따라 엔드포인트와 응답 구조가 일부 확장될 수 있다.

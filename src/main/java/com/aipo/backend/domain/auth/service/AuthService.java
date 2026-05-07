@@ -2,6 +2,7 @@ package com.aipo.backend.domain.auth.service;
 
 import com.aipo.backend.domain.auth.dto.LoginRequest;
 import com.aipo.backend.domain.auth.dto.LoginResponse;
+import com.aipo.backend.domain.auth.dto.LoginIdAvailabilityResponse;
 import com.aipo.backend.domain.auth.dto.MessageResponse;
 import com.aipo.backend.domain.auth.dto.RegisterRequest;
 import com.aipo.backend.domain.auth.dto.RegisterResponse;
@@ -38,6 +39,12 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final InvestmentProfileService investmentProfileService;
     private final NotificationSettingService notificationSettingService;
+
+    @Transactional(readOnly = true)
+    public LoginIdAvailabilityResponse checkLoginIdAvailability(String loginId) {
+        boolean available = !userRepository.existsByLoginId(loginId);
+        return new LoginIdAvailabilityResponse(loginId, available);
+    }
 
     public RegisterResponse register(RegisterRequest request) {
         if (userRepository.existsByLoginId(request.getLoginId())) {

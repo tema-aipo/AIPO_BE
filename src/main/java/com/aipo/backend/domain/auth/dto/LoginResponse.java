@@ -20,4 +20,6 @@ public class LoginResponse {
     private String loginId;
     @Schema(description = "사용자 이름", example = "홍길동")
     private String userName;
+    @Schema(description = "이메일", example = "investor01@aipo.com")
+    private String email;
 }

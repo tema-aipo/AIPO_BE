@@ -3,6 +3,7 @@ package com.aipo.backend.domain.user.controller;
 import com.aipo.backend.domain.user.entity.User;
 import com.aipo.backend.domain.user.entity.UserRole;
 import com.aipo.backend.domain.user.repository.UserRepository;
+import com.aipo.backend.domain.investmentprofile.service.InvestmentProfileService;
 import com.aipo.backend.global.config.OpenApiConfig;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final InvestmentProfileService investmentProfileService;
 
     @GetMapping("/me")
     @Operation(summary = "내 정보 조회", description = "현재 accessToken에 해당하는 사용자의 기본 정보를 조회합니다.")
@@ -42,12 +44,18 @@ public class UserController {
         User user = userRepository.findByLoginId(principal.getUsername())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        String investmentType = "분석대기중";
+        try {
+            investmentType = investmentProfileService.getCurrentResult(user.getUserId()).profileLabel();
+        } catch (Exception ignored) {}
+
         return new MeResponse(
                 user.getUserId(),
                 user.getLoginId(),
                 user.getUserName(),
                 user.getEmail(),
-                user.getRole()
+                user.getRole(),
+                investmentType
         );
     }
 
@@ -59,5 +67,6 @@ public class UserController {
         private String userName;
         private String email;
         private UserRole role;
+        private String investmentType;
     }
 }

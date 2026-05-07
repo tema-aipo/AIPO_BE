@@ -116,7 +116,8 @@ public class AuthService {
                 "Bearer",
                 user.getUserId(),
                 user.getLoginId(),
-                user.getUserName()
+                user.getUserName(),
+                user.getEmail()
         );
     }
 

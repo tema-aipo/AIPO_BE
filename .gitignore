@@ -38,3 +38,7 @@ out/
 
 ###resources###
 src/main/resources/application-local.yaml
+
+### Environment ###
+.env
+.env.*

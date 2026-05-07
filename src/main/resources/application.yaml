@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/aipo
     username: postgres
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD:1234}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -14,9 +14,10 @@ spring:
         format_sql: true
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:aipo-jwt-secret-key-local-dev-2024}
   access-token-expiration: 3600000
   refresh-token-expiration: 604800000
+
 
 springdoc:
   swagger-ui:

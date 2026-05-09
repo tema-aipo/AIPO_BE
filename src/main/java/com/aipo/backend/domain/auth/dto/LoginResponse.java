@@ -22,4 +22,6 @@ public class LoginResponse {
     private String userName;
     @Schema(description = "이메일", example = "investor01@aipo.com")
     private String email;
+    @Schema(description = "투자 성향", example = "안정형")
+    private String investmentType;
 }

@@ -33,7 +33,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        if (swaggerBasicAuthEnabled && (!StringUtils.hasText(swaggerBasicAuthUsername) || !StringUtils.hasText(swaggerBasicAuthPassword))) {
+        if (isMissingRequiredSwaggerAuthCredentials()) {
             throw new IllegalStateException(
                     "Swagger Basic Auth is enabled but required properties are missing. " +
                             "Please set APP_SWAGGER_BASIC_AUTH_USERNAME and APP_SWAGGER_BASIC_AUTH_PASSWORD."
@@ -77,6 +77,11 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
+    }
+
+    private boolean isMissingRequiredSwaggerAuthCredentials() {
+        return swaggerBasicAuthEnabled
+                && (!StringUtils.hasText(swaggerBasicAuthUsername) || !StringUtils.hasText(swaggerBasicAuthPassword));
     }
 }
 // NOTE:

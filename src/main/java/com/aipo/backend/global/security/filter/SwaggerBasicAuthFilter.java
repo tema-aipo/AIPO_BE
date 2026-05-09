@@ -14,12 +14,16 @@ import java.util.Base64;
 
 public class SwaggerBasicAuthFilter extends OncePerRequestFilter {
 
+    private static final String BASIC_AUTH_PREFIX = "Basic ";
+
     private final boolean enabled;
     private final byte[] expectedCredentialHash;
 
     public SwaggerBasicAuthFilter(boolean enabled, String username, String password) {
         this.enabled = enabled;
-        this.expectedCredentialHash = sha256((username + ":" + password).getBytes(StandardCharsets.UTF_8));
+        this.expectedCredentialHash = enabled
+                ? sha256((username + ":" + password).getBytes(StandardCharsets.UTF_8))
+                : new byte[0];
     }
 
     @Override
@@ -50,12 +54,12 @@ public class SwaggerBasicAuthFilter extends OncePerRequestFilter {
     }
 
     private boolean isAuthorized(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Basic ")) {
+        if (authHeader == null || !authHeader.startsWith(BASIC_AUTH_PREFIX)) {
             return false;
         }
 
         try {
-            String encoded = authHeader.substring(6).trim();
+            String encoded = authHeader.substring(BASIC_AUTH_PREFIX.length()).trim();
             byte[] decoded = Base64.getDecoder().decode(encoded);
             byte[] providedHash = sha256(decoded);
             return MessageDigest.isEqual(providedHash, expectedCredentialHash);

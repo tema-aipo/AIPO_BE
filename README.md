@@ -45,7 +45,7 @@ Spring Boot 기반으로 사용자 인증, 공모주, 관심종목, 캘린더 AP
 - API Docs URL: `{APP_SWAGGER_PUBLIC_BASE_URL}/v3/api-docs`
 - 환경변수 `APP_SWAGGER_PUBLIC_BASE_URL` 예시: `https://api.example.com`
 
-### 4-4. 운영 보안 정책 (기본 적용: Swagger Basic Auth)
+### 4-4. 운영 보안 정책 (권장 적용: Swagger Basic Auth)
 - 운영에서는 Swagger Basic Auth 사용 권장
 - 아래 환경변수 설정 시 Swagger 경로에 Basic Auth가 적용됨
   - `APP_SWAGGER_BASIC_AUTH_ENABLED=true`

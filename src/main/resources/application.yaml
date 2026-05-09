@@ -36,3 +36,7 @@ ipo:
     cron: "0 0 8 * * MON-FRI"
     # 크롤링 기준: 오늘부터 며칠 전까지 공시를 조회할지 (기본 1일)
     lookback-days: 1
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}

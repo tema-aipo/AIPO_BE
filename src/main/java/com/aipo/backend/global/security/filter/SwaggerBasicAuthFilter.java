@@ -9,16 +9,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
 public class SwaggerBasicAuthFilter extends OncePerRequestFilter {
 
     private final boolean enabled;
-    private final byte[] expectedCredentials;
+    private final byte[] expectedCredentialHash;
 
     public SwaggerBasicAuthFilter(boolean enabled, String username, String password) {
         this.enabled = enabled;
-        this.expectedCredentials = (username + ":" + password).getBytes(StandardCharsets.UTF_8);
+        this.expectedCredentialHash = sha256((username + ":" + password).getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
@@ -56,9 +57,19 @@ public class SwaggerBasicAuthFilter extends OncePerRequestFilter {
         try {
             String encoded = authHeader.substring(6).trim();
             byte[] decoded = Base64.getDecoder().decode(encoded);
-            return MessageDigest.isEqual(decoded, expectedCredentials);
+            byte[] providedHash = sha256(decoded);
+            return MessageDigest.isEqual(providedHash, expectedCredentialHash);
         } catch (IllegalArgumentException e) {
             return false;
+        }
+    }
+
+    private byte[] sha256(byte[] value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(value);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm is not available.", e);
         }
     }
 }

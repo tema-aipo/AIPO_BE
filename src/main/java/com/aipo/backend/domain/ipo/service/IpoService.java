@@ -92,7 +92,8 @@ public class IpoService {
                         .map(IpoLeadManager::getManagerName)
                         .toList(),
                 new DateRange(ipoStock.getSubscriptionStartDate(), ipoStock.getSubscriptionEndDate()),
-                isFavorite
+                isFavorite,
+                ipoStock.getMarketType()
         );
     }
 

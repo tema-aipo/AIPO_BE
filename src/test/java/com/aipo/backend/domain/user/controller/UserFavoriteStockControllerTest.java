@@ -12,7 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.web.servlet.MockMvc;
@@ -38,10 +38,10 @@ class UserFavoriteStockControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private FavoriteService favoriteService;
 
-    @MockBean
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
     @Test
@@ -57,7 +57,11 @@ class UserFavoriteStockControllerTest {
                         "공시문서 분석 기업",
                         new BigDecimal("15000.00"),
                         new DateRange(LocalDate.of(2026, 4, 28), LocalDate.of(2026, 4, 29)),
-                        true
+                        true,
+                        85,
+                        "대표주관사",
+                        "청약",
+                        "04.28 ~ 04.29"
                 )
         ));
 
@@ -97,7 +101,11 @@ class UserFavoriteStockControllerTest {
                         "데이터 플랫폼 기업",
                         new BigDecimal("18000.00"),
                         new DateRange(LocalDate.of(2026, 5, 3), LocalDate.of(2026, 5, 4)),
-                        true
+                        true,
+                        90,
+                        "대표주관사",
+                        "청약",
+                        "05.03 ~ 05.04"
                 )
         ));
 

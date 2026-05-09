@@ -2,11 +2,15 @@ package com.aipo.backend.domain.home.service;
 
 import com.aipo.backend.domain.home.dto.*;
 import com.aipo.backend.domain.home.type.HomeTab;
+import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
+import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Service // 비즈니스 로직 처리 계층
@@ -14,6 +18,7 @@ import java.util.stream.IntStream;
 public class HomeService {
 
     private final IpoStockRepository ipoStockRepository;
+    private final IpoLeadManagerRepository ipoLeadManagerRepository; // 추가
 
     public HomeResponse getHome(String tabValue) {
         // 요청 파라미터 문자열을 enum으로 변환
@@ -41,11 +46,37 @@ public class HomeService {
 
     private List<AttractivenessItem> getAttractivenessItems(HomeTab tab) {
         // 선택된 탭에 따라 다른 조회 메서드 호출
-        return switch (tab) {
+        List<AttractivenessItem> items = switch (tab) {
             case RECENT_GROWTH -> ipoStockRepository.findAttractivenessByRecentGrowth();
             case SUBSCRIPTION_UPCOMING -> ipoStockRepository.findAttractivenessBySubscriptionUpcoming();
             case FAVORITE -> ipoStockRepository.findAttractivenessByFavorite();
         };
+
+        if (items.isEmpty()) return items;
+
+        // 배치 조회: 종목 ID 목록으로 주관사 한 번에 로드
+        List<Long> stockIds = items.stream().map(AttractivenessItem::ipoId).toList();
+        List<IpoLeadManager> managers = ipoLeadManagerRepository.findAllByStock_IdIn(stockIds);
+
+        // stockId → 첫 번째 주관사명 매핑 (displayOrder 최솟값)
+        Map<Long, String> leadManagerMap = managers.stream()
+                .collect(Collectors.toMap(
+                        m -> m.getStock().getId(),
+                        IpoLeadManager::getManagerName,
+                        (existing, replacement) -> existing  // 중복 시 첫 번째 유지
+                ));
+
+        // 기존 items에 leadManager 주입하여 새 객체 생성
+        return items.stream()
+                .map(item -> new AttractivenessItem(
+                        item.ipoId(),
+                        item.name(),
+                        item.score(),
+                        item.subscriptionStartDate(),
+                        item.subscriptionEndDate(),
+                        leadManagerMap.getOrDefault(item.ipoId(), "-")
+                ))
+                .toList();
     }
 
     private List<FeaturedIpoItem> applyFeaturedRank(List<FeaturedIpoItem> items) {

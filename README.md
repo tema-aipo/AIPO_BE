@@ -28,3 +28,31 @@ Spring Boot 기반으로 사용자 인증, 공모주, 관심종목, 캘린더 AP
 - 공통 예외 처리 및 응답 형식 통일
 - 테스트 코드 및 CI 정상화
 - CORS 및 운영 보안 정책 반영
+
+## 4. Swagger 운영 배포 가이드 (2번 방식: 백엔드 직접 제공)
+
+### 4-1. 배포본 실행 상태 확인 (EC2/ECS)
+- 애플리케이션이 정상 기동되어 `/api/health` 응답이 200인지 확인
+- 배포 직후 `https://{api-domain}/swagger-ui/index.html` 접속 확인
+
+### 4-2. 인프라 라우팅/접근 허용
+- 보안그룹/ALB/Nginx에서 아래 경로를 외부에서 접근 가능하게 설정
+  - `/swagger-ui/**`
+  - `/v3/api-docs/**`
+
+### 4-3. 프론트 공유용 URL 규칙
+- Swagger UI 기본 URL: `{APP_SWAGGER_PUBLIC_BASE_URL}/swagger-ui/index.html`
+- API Docs URL: `{APP_SWAGGER_PUBLIC_BASE_URL}/v3/api-docs`
+- 환경변수 `APP_SWAGGER_PUBLIC_BASE_URL` 예시: `https://api.example.com`
+
+### 4-4. 운영 보안 정책 (기본 적용: Swagger Basic Auth)
+- 운영에서는 Swagger Basic Auth 사용 권장
+- 아래 환경변수 설정 시 Swagger 경로에 Basic Auth가 적용됨
+  - `APP_SWAGGER_BASIC_AUTH_ENABLED=true`
+  - `APP_SWAGGER_BASIC_AUTH_USERNAME={username}`
+  - `APP_SWAGGER_BASIC_AUTH_PASSWORD={strong_password}`
+
+### 4-5. 문서 갱신 운영 규칙
+- 백엔드 배포 완료 후 Swagger UI 접속 및 주요 엔드포인트 스키마 확인
+- 프론트에 공유한 Swagger URL이 동일하게 동작하는지 확인
+- 배포 체크리스트에 Swagger 확인 항목을 포함하여 릴리즈마다 검증

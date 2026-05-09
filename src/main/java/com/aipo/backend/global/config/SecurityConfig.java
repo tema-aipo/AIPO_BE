@@ -1,9 +1,11 @@
 package com.aipo.backend.global.config;
 
+import com.aipo.backend.global.security.filter.SwaggerBasicAuthFilter;
 import com.aipo.backend.global.security.jwt.JwtAuthenticationEntryPoint;
 import com.aipo.backend.global.security.jwt.JwtAuthenticationFilter;
 import com.aipo.backend.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,6 +14,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -21,9 +24,19 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final CorsConfigurationSource corsConfigurationSource;
+    @Value("${app.swagger.basic-auth.enabled:false}")
+    private boolean swaggerBasicAuthEnabled;
+    @Value("${app.swagger.basic-auth.username:}")
+    private String swaggerBasicAuthUsername;
+    @Value("${app.swagger.basic-auth.password:}")
+    private String swaggerBasicAuthPassword;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        if (swaggerBasicAuthEnabled && (!StringUtils.hasText(swaggerBasicAuthUsername) || !StringUtils.hasText(swaggerBasicAuthPassword))) {
+            throw new IllegalStateException("Swagger Basic Auth is enabled but username/password is not configured.");
+        }
+
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
@@ -47,6 +60,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(new SwaggerBasicAuthFilter(
+                                swaggerBasicAuthEnabled,
+                                swaggerBasicAuthUsername,
+                                swaggerBasicAuthPassword),
+                        JwtAuthenticationFilter.class)
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),
                         UsernamePasswordAuthenticationFilter.class);
 

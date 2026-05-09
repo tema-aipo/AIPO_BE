@@ -17,6 +17,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -36,7 +40,8 @@ public class SecurityConfig {
         if (isMissingRequiredSwaggerAuthCredentials()) {
             throw new IllegalStateException(
                     "Swagger Basic Auth is enabled but required properties are missing. " +
-                            "Please set APP_SWAGGER_BASIC_AUTH_USERNAME and APP_SWAGGER_BASIC_AUTH_PASSWORD."
+                            "Set app.swagger.basic-auth.username / app.swagger.basic-auth.password " +
+                            "(or env: APP_SWAGGER_BASIC_AUTH_USERNAME / APP_SWAGGER_BASIC_AUTH_PASSWORD)."
             );
         }
 
@@ -65,8 +70,7 @@ public class SecurityConfig {
                 )
                 .addFilterBefore(new SwaggerBasicAuthFilter(
                                 swaggerBasicAuthEnabled,
-                                swaggerBasicAuthUsername,
-                                swaggerBasicAuthPassword),
+                                createSwaggerExpectedCredentialHash()),
                         JwtAuthenticationFilter.class)
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),
                         UsernamePasswordAuthenticationFilter.class);
@@ -82,6 +86,20 @@ public class SecurityConfig {
     private boolean isMissingRequiredSwaggerAuthCredentials() {
         return swaggerBasicAuthEnabled
                 && (!StringUtils.hasText(swaggerBasicAuthUsername) || !StringUtils.hasText(swaggerBasicAuthPassword));
+    }
+
+    private byte[] createSwaggerExpectedCredentialHash() {
+        if (!swaggerBasicAuthEnabled) {
+            return new byte[0];
+        }
+
+        String value = swaggerBasicAuthUsername + ":" + swaggerBasicAuthPassword;
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(value.getBytes(StandardCharsets.UTF_8));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm is not available.", e);
+        }
     }
 }
 // NOTE:

@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
@@ -19,11 +18,9 @@ public class SwaggerBasicAuthFilter extends OncePerRequestFilter {
     private final boolean enabled;
     private final byte[] expectedCredentialHash;
 
-    public SwaggerBasicAuthFilter(boolean enabled, String username, String password) {
+    public SwaggerBasicAuthFilter(boolean enabled, byte[] expectedCredentialHash) {
         this.enabled = enabled;
-        this.expectedCredentialHash = enabled
-                ? sha256((username + ":" + password).getBytes(StandardCharsets.UTF_8))
-                : new byte[0];
+        this.expectedCredentialHash = enabled ? expectedCredentialHash : new byte[0];
     }
 
     @Override

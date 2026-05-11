@@ -13,14 +13,29 @@ spring:
       hibernate:
         format_sql: true
 
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:aipo-jwt-secret-key-local-dev-2024}
   access-token-expiration: 3600000
   refresh-token-expiration: 604800000
+
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+upload:
+  dir: ${UPLOAD_DIR:./uploads}
+
+ipo:
+  crawler:
+    dart-api-key: ${DART_API_KEY:}
+    cron: "0 0 8 * * MON-FRI"
+    lookback-days: 1
 
 external:
   opendart:

@@ -2,6 +2,9 @@ package com.aipo.backend.domain.user.service;
 
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.UserFavoriteStock;
+import com.aipo.backend.domain.ipo.repository.IpoAttractionScoreRepository;
+import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
+import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.repository.UserFavoriteStockRepository;
 import com.aipo.backend.domain.user.dto.FavoriteStockResponse;
@@ -38,6 +41,15 @@ class FavoriteServiceTest {
     @Mock
     private UserFavoriteStockRepository userFavoriteStockRepository;
 
+    @Mock
+    private IpoLeadManagerRepository ipoLeadManagerRepository;
+
+    @Mock
+    private IpoAttractionScoreRepository ipoAttractionScoreRepository;
+
+    @Mock
+    private IpoScheduleRepository ipoScheduleRepository;
+
     @InjectMocks
     private FavoriteService favoriteService;
 
@@ -67,6 +79,10 @@ class FavoriteServiceTest {
                 favorite(userId, secondStock, LocalDateTime.of(2026, 4, 20, 10, 0))
         ));
 
+        when(ipoLeadManagerRepository.findAllByStock_IdIn(any())).thenReturn(List.of());
+        when(ipoAttractionScoreRepository.findAllByStock_IdIn(any())).thenReturn(List.of());
+        when(ipoScheduleRepository.findAllByStock_IdInAndScheduleType(any(), any())).thenReturn(List.of());
+
         List<FavoriteStockResponse> responses = favoriteService.getFavorites(userId);
 
         assertThat(responses).hasSize(2);
@@ -77,8 +93,14 @@ class FavoriteServiceTest {
         assertThat(responses.get(0).subscriptionPeriod().startDate()).isEqualTo(LocalDate.of(2026, 4, 28));
         assertThat(responses.get(0).subscriptionPeriod().endDate()).isEqualTo(LocalDate.of(2026, 4, 29));
         assertThat(responses.get(0).isFavorite()).isTrue();
+        assertThat(responses.get(0).leadManager()).isEqualTo("-");
+        assertThat(responses.get(0).status()).isNotNull();
+        assertThat(responses.get(0).dateRange()).isNotNull();
         assertThat(responses.get(1).ipoId()).isEqualTo(2L);
         verify(userFavoriteStockRepository).findAllByUserIdOrderByCreatedAtDesc(userId);
+        verify(ipoLeadManagerRepository).findAllByStock_IdIn(any());
+        verify(ipoAttractionScoreRepository).findAllByStock_IdIn(any());
+        verify(ipoScheduleRepository).findAllByStock_IdInAndScheduleType(any(), any());
     }
 
     @Test

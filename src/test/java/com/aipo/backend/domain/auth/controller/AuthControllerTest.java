@@ -1,20 +1,17 @@
 package com.aipo.backend.domain.auth.controller;
 
-import com.aipo.backend.domain.auth.dto.LoginResponse;
 import com.aipo.backend.domain.auth.dto.MessageResponse;
 import com.aipo.backend.domain.auth.service.AuthService;
 import com.aipo.backend.global.config.SecurityConfig;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
 import com.aipo.backend.global.security.jwt.JwtTokenProvider;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.when;
@@ -29,13 +26,10 @@ class AuthControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @MockitoBean
     private AuthService authService;
 
-    @MockBean
+    @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
     @Test

@@ -110,13 +110,20 @@ public class AuthService {
                 )
         );
 
+        String investmentType = "분석대기중";
+        try {
+            investmentType = investmentProfileService.getCurrentResult(user.getUserId()).profileLabel();
+        } catch (Exception ignored) {}
+
         return new LoginResponse(
                 accessToken,
                 refreshToken,
                 "Bearer",
                 user.getUserId(),
                 user.getLoginId(),
-                user.getUserName()
+                user.getUserName(),
+                user.getEmail(),
+                investmentType
         );
     }
 

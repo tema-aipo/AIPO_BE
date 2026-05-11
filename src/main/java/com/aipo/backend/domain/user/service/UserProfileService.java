@@ -23,6 +23,7 @@ public class UserProfileService {
     private final UserRepository userRepository;
     private final UserRefreshTokenRepository userRefreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final jakarta.persistence.EntityManager entityManager;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(Long userId) {
@@ -54,8 +55,54 @@ public class UserProfileService {
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new CustomException(ErrorCode.INVALID_PASSWORD);
         }
-        user.withdraw();
-        userRefreshTokenRepository.deleteByUser_UserId(userId);
+
+        // 1. 대화방 관련 피드백 삭제
+        entityManager.createNativeQuery("DELETE FROM chat_feedback WHERE user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 2. 대화방 관련 메시지 삭제
+        entityManager.createNativeQuery("DELETE FROM chat_message WHERE chat_session_id IN (SELECT chat_session_id FROM chat_session WHERE user_id = :userId)")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 3. 대화 세션 삭제
+        entityManager.createNativeQuery("DELETE FROM chat_session WHERE user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 4. 추천 질문 타겟 유저 삭제
+        entityManager.createNativeQuery("DELETE FROM chat_recommended_question WHERE target_user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 5. 관심 공모주 목록 삭제
+        entityManager.createNativeQuery("DELETE FROM user_favorite_stock WHERE user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 6. 조회 로그 삭제
+        entityManager.createNativeQuery("DELETE FROM ipo_view_log WHERE user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 7. 투자 성향 답변 삭제
+        entityManager.createNativeQuery("DELETE FROM user_investment_profile_answer WHERE result_id IN (SELECT result_id FROM user_investment_profile_result WHERE user_id = :userId)")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 8. 투자 성향 분석 결과 삭제
+        entityManager.createNativeQuery("DELETE FROM user_investment_profile_result WHERE user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 9. 푸시 알림 설정 삭제
+        entityManager.createNativeQuery("DELETE FROM user_notification_setting WHERE user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 10. 리프레시 토큰 삭제
+        entityManager.createNativeQuery("DELETE FROM user_refresh_token WHERE user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 11. 최종 회원 물리 삭제 (JPA Repository delete 호출로 1차 캐시와 상태 일치시킴!)
+        userRepository.delete(user);
+
+        // 즉시 데이터베이스 동기화 및 영속성 컨텍스트 초기화 (Dirty Checking 방지)
+        entityManager.flush();
+        entityManager.clear();
+
         return new MessageResponse("회원탈퇴가 완료되었습니다.");
     }
 

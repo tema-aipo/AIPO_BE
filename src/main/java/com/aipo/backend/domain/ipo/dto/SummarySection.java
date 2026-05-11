@@ -9,6 +9,7 @@ public record SummarySection(
         BigDecimal confirmedOfferPrice,
         List<String> leadManagers,
         DateRange subscriptionPeriod,
-        Boolean isFavorite
+        Boolean isFavorite,
+        String marketType
 ) {
 }

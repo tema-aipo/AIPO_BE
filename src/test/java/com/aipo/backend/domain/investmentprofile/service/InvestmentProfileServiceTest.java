@@ -109,6 +109,7 @@ class InvestmentProfileServiceTest {
         assertThat(response.totalScore()).isEqualTo(15);
         assertThat(response.profileLabel()).isEqualTo("공격형");
 
+        @SuppressWarnings("unchecked")
         ArgumentCaptor<List<UserInvestmentProfileAnswer>> answerCaptor = ArgumentCaptor.forClass(List.class);
         verify(answerRepository).saveAll(answerCaptor.capture());
         assertThat(answerCaptor.getValue()).hasSize(6);

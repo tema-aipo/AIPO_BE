@@ -6,7 +6,6 @@ import com.aipo.backend.domain.user.dto.ChangePasswordRequest;
 import com.aipo.backend.domain.user.dto.UpdateUserProfileRequest;
 import com.aipo.backend.domain.user.dto.UserProfileResponse;
 import com.aipo.backend.domain.user.entity.User;
-import com.aipo.backend.domain.user.entity.UserStatus;
 import com.aipo.backend.domain.user.repository.UserRepository;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
@@ -23,6 +22,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +37,12 @@ class UserProfileServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private jakarta.persistence.EntityManager entityManager;
+
+    @Mock
+    private jakarta.persistence.Query query;
 
     @InjectMocks
     private UserProfileService userProfileService;
@@ -109,12 +115,13 @@ class UserProfileServiceTest {
         User user = user(1L, "demo-user", "홍길동", "demo@aipo.test");
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("test1234", user.getPasswordHash())).thenReturn(true);
+        when(entityManager.createNativeQuery(any())).thenReturn(query);
+        when(query.setParameter(any(String.class), any())).thenReturn(query);
 
         MessageResponse response = userProfileService.withdraw(1L, "test1234");
 
         assertThat(response.getMessage()).isEqualTo("회원탈퇴가 완료되었습니다.");
-        assertThat(user.getUserStatus()).isEqualTo(UserStatus.WITHDRAWN);
-        verify(userRefreshTokenRepository).deleteByUser_UserId(1L);
+        verify(userRepository).delete(user);
     }
 
     @Test

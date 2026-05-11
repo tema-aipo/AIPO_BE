@@ -17,4 +17,6 @@ public interface IpoScheduleRepository extends JpaRepository<IpoSchedule, Long> 
 
     @EntityGraph(attributePaths = "stock")
     List<IpoSchedule> findAllByScheduleDateBetweenOrderByScheduleDateAsc(LocalDate startDate, LocalDate endDate);
+
+    List<IpoSchedule> findAllByStock_IdInAndScheduleType(List<Long> stockIds, ScheduleType scheduleType);
 }

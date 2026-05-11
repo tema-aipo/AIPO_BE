@@ -10,6 +10,10 @@ public record FavoriteStockResponse(
         String oneLineDescription,
         BigDecimal confirmedOfferPrice,
         DateRange subscriptionPeriod,
-        Boolean isFavorite
+        Boolean isFavorite,
+        Integer attractionScore,
+        String leadManager,
+        String status,
+        String dateRange
 ) {
 }

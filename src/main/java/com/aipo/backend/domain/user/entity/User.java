@@ -63,8 +63,22 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public static User createAdmin(String loginId, String passwordHash, String userName, String email) {
+        User user = new User(loginId, passwordHash, userName, email);
+        user.role = UserRole.ADMIN;
+        return user;
+    }
+
     public void updateLastLoginAt() {
         this.lastLoginAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateStatus(UserStatus status) {
+        this.userStatus = status;
+        if (status == UserStatus.WITHDRAWN) {
+            this.deletedAt = LocalDateTime.now();
+        }
         this.updatedAt = LocalDateTime.now();
     }
 

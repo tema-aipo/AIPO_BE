@@ -1,6 +1,11 @@
-name: Deploy to EC2
+name: Deploy Backend to EC2
 
 on:
+  push:
+    branches:
+      - main
+      # 필요하면 아래 브랜치도 추가
+      # - codex/aipo_backend
   workflow_dispatch:
 
 jobs:
@@ -8,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
@@ -33,7 +38,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "build/libs/*.jar"
-          target: "/opt/aipo"
+          target: "/tmp/aipo-deploy"
           strip_components: 2
 
       - name: Restart Spring Boot service
@@ -44,8 +49,18 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
-            cd /opt/aipo
-            JAR_FILE=$(ls *.jar | head -n 1)
-            mv "$JAR_FILE" app.jar
-            sudo systemctl restart aipo
-            sudo systemctl status aipo --no-pager
+
+            echo "Check uploaded jar"
+            ls -al /tmp/aipo-deploy
+
+            echo "Stop service"
+            sudo systemctl stop aipo-backend
+
+            echo "Replace app.jar"
+            cp /tmp/aipo-deploy/*.jar /opt/aipo/app.jar
+
+            echo "Start service"
+            sudo systemctl start aipo-backend
+
+            echo "Check service status"
+            sudo systemctl status aipo-backend --no-pager

@@ -26,7 +26,7 @@ public class IpoViewLog {
 
     // 어떤 공모주를 조회했는지 연결
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock_id", nullable = false)
+    @JoinColumn(name = "stock_id", nullable = false, columnDefinition = "INT UNSIGNED")
     private IpoStock stock;
 
     // 조회 시각

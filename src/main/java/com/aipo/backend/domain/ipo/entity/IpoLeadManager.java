@@ -27,7 +27,7 @@ public class IpoLeadManager {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock_id", nullable = false)
+    @JoinColumn(name = "stock_id", nullable = false, columnDefinition = "INT UNSIGNED")
     private IpoStock stock;
 
     @Column(name = "manager_name", nullable = false, length = 100)

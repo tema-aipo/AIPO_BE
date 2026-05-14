@@ -31,7 +31,7 @@ public class UserFavoriteStock {
 
     // 관심 등록된 공모주
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock_id", nullable = false)
+    @JoinColumn(name = "stock_id", nullable = false, columnDefinition = "INT UNSIGNED")
     private IpoStock stock;
 
     // 관심종목 표시 순서

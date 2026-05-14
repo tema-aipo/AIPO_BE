@@ -121,8 +121,8 @@ CREATE TABLE IF NOT EXISTS user_notification_setting (
         FOREIGN KEY (user_id) REFERENCES app_user(user_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS ipo_stock (
-    stock_id BIGINT GENERATED ALWAYS AS IDENTITY,
+CREATE TABLE IF NOT EXISTS ipo_main (
+    stock_id INT UNSIGNED GENERATED ALWAYS AS IDENTITY,
     stock_name VARCHAR(100) NOT NULL,
     company_name VARCHAR(100) NOT NULL,
     stock_code VARCHAR(20),
@@ -140,19 +140,19 @@ CREATE TABLE IF NOT EXISTS ipo_stock (
 
 CREATE TABLE IF NOT EXISTS ipo_lead_manager (
     lead_manager_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id BIGINT NOT NULL,
+    stock_id INT UNSIGNED NOT NULL,
     manager_name VARCHAR(100) NOT NULL,
     display_order INT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (lead_manager_id),
     CONSTRAINT uk_ipo_lead_manager_stock_order UNIQUE (stock_id, display_order),
     CONSTRAINT fk_ipo_lead_manager_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
 CREATE TABLE IF NOT EXISTS ipo_attraction_score (
     score_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id BIGINT NOT NULL,
+    stock_id INT UNSIGNED NOT NULL,
     total_score INT NOT NULL,
     financial_score INT,
     demand_score INT,
@@ -161,12 +161,12 @@ CREATE TABLE IF NOT EXISTS ipo_attraction_score (
     calculated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (score_id),
     CONSTRAINT fk_ipo_attraction_score_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
 CREATE TABLE IF NOT EXISTS ipo_attraction_reason (
     reason_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id BIGINT NOT NULL,
+    stock_id INT UNSIGNED NOT NULL,
     title VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     display_order INT NOT NULL,
@@ -175,12 +175,12 @@ CREATE TABLE IF NOT EXISTS ipo_attraction_reason (
     PRIMARY KEY (reason_id),
     CONSTRAINT uk_ipo_attraction_reason_stock_order UNIQUE (stock_id, display_order),
     CONSTRAINT fk_ipo_attraction_reason_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
 CREATE TABLE IF NOT EXISTS ipo_demand_forecast (
     forecast_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id BIGINT NOT NULL,
+    stock_id INT UNSIGNED NOT NULL,
     institutional_competition_rate NUMERIC(10,2),
     participating_institution_count INT,
     above_upper_price_competition_rate NUMERIC(10,2),
@@ -193,12 +193,12 @@ CREATE TABLE IF NOT EXISTS ipo_demand_forecast (
     PRIMARY KEY (forecast_id),
     CONSTRAINT uk_ipo_demand_forecast_stock UNIQUE (stock_id),
     CONSTRAINT fk_ipo_demand_forecast_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
 CREATE TABLE IF NOT EXISTS ipo_subscription_competition (
     competition_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id BIGINT NOT NULL,
+    stock_id INT UNSIGNED NOT NULL,
     default_tab VARCHAR(20),
     equal_expected_allocation_quantity NUMERIC(10,2),
     equal_competition_rate NUMERIC(10,2),
@@ -209,12 +209,12 @@ CREATE TABLE IF NOT EXISTS ipo_subscription_competition (
     PRIMARY KEY (competition_id),
     CONSTRAINT uk_ipo_subscription_competition_stock UNIQUE (stock_id),
     CONSTRAINT fk_ipo_subscription_competition_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
 CREATE TABLE IF NOT EXISTS ipo_schedule (
     schedule_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id BIGINT NOT NULL,
+    stock_id INT UNSIGNED NOT NULL,
     schedule_type VARCHAR(30) NOT NULL,
     schedule_date DATE NOT NULL,
     note VARCHAR(255),
@@ -223,12 +223,12 @@ CREATE TABLE IF NOT EXISTS ipo_schedule (
     PRIMARY KEY (schedule_id),
     CONSTRAINT uk_ipo_schedule_stock_type UNIQUE (stock_id, schedule_type),
     CONSTRAINT fk_ipo_schedule_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
 CREATE TABLE IF NOT EXISTS ipo_deposit_info (
     deposit_info_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id BIGINT NOT NULL,
+    stock_id INT UNSIGNED NOT NULL,
     securities_company_name VARCHAR(100) NOT NULL,
     amount_for_ten_shares NUMERIC(15,2),
     display_order INT NOT NULL,
@@ -238,12 +238,12 @@ CREATE TABLE IF NOT EXISTS ipo_deposit_info (
     CONSTRAINT uk_ipo_deposit_info_stock_company UNIQUE (stock_id, securities_company_name),
     CONSTRAINT uk_ipo_deposit_info_stock_order UNIQUE (stock_id, display_order),
     CONSTRAINT fk_ipo_deposit_info_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
 CREATE TABLE IF NOT EXISTS ipo_offering_info (
     offering_info_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id BIGINT NOT NULL,
+    stock_id INT UNSIGNED NOT NULL,
     market_cap NUMERIC(20,2),
     equal_allocation_ratio NUMERIC(5,2),
     circulating_ratio NUMERIC(5,2),
@@ -253,13 +253,13 @@ CREATE TABLE IF NOT EXISTS ipo_offering_info (
     PRIMARY KEY (offering_info_id),
     CONSTRAINT uk_ipo_offering_info_stock UNIQUE (stock_id),
     CONSTRAINT fk_ipo_offering_info_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
 CREATE TABLE IF NOT EXISTS user_favorite_stock (
     favorite_id BIGINT GENERATED ALWAYS AS IDENTITY,
     user_id BIGINT NOT NULL,
-    stock_id BIGINT NOT NULL,
+    stock_id INT UNSIGNED NOT NULL,
     display_order INT NULL,
     alert_priority INT NULL,
     alert_yn CHAR(1) NULL,
@@ -269,20 +269,20 @@ CREATE TABLE IF NOT EXISTS user_favorite_stock (
     CONSTRAINT fk_user_favorite_stock_user
         FOREIGN KEY (user_id) REFERENCES app_user(user_id),
     CONSTRAINT fk_user_favorite_stock_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
 CREATE TABLE IF NOT EXISTS ipo_view_log (
     view_log_id BIGINT GENERATED ALWAYS AS IDENTITY,
     user_id BIGINT,
-    stock_id BIGINT NOT NULL,
+    stock_id INT UNSIGNED NOT NULL,
     viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     source VARCHAR(30),
     PRIMARY KEY (view_log_id),
     CONSTRAINT fk_ipo_view_log_user
         FOREIGN KEY (user_id) REFERENCES app_user(user_id),
     CONSTRAINT fk_ipo_view_log_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id)
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
 CREATE TABLE IF NOT EXISTS chat_session (
@@ -339,7 +339,7 @@ CREATE TABLE IF NOT EXISTS chat_recommended_question (
     category VARCHAR(30) NULL,
     target_investment_type VARCHAR(30) NULL,
     source_type VARCHAR(20) NOT NULL DEFAULT 'DEFAULT',
-    stock_id BIGINT NULL,
+    stock_id INT UNSIGNED NULL,
     valid_from TIMESTAMP NULL,
     valid_to TIMESTAMP NULL,
     target_user_id BIGINT NULL,
@@ -348,7 +348,7 @@ CREATE TABLE IF NOT EXISTS chat_recommended_question (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (recommended_question_id),
     CONSTRAINT fk_chat_recommended_question_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_stock(stock_id),
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id),
     CONSTRAINT fk_chat_recommended_question_user
         FOREIGN KEY (target_user_id) REFERENCES app_user(user_id)
 );
@@ -374,7 +374,7 @@ DELETE FROM ipo_lead_manager;
 DELETE FROM ipo_offering_info;
 DELETE FROM user_refresh_token;
 DELETE FROM user_investment_type;
-DELETE FROM ipo_stock;
+DELETE FROM ipo_main;
 DELETE FROM app_user;
 
 INSERT INTO app_user (
@@ -455,7 +455,7 @@ INSERT INTO investment_profile_option (
     (603, 6, 3, '동의함', 2, '2026-04-21 09:45:00', '2026-04-21 09:45:00'),
     (604, 6, 4, '매우 동의함', 3, '2026-04-21 09:45:00', '2026-04-21 09:45:00');
 
-INSERT INTO ipo_stock (
+INSERT INTO ipo_main (
     stock_id, stock_name, company_name, stock_code, market_type, one_line_description,
     confirmed_offer_price, subscription_start_date, subscription_end_date, listing_date,
     recent_growth_score, created_at, updated_at

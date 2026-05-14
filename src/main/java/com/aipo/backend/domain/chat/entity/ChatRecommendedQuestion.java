@@ -45,7 +45,7 @@ public class ChatRecommendedQuestion {
     @Column(name = "source_type", nullable = false, length = 20)
     private RecommendedQuestionSourceType sourceType;
 
-    @Column(name = "stock_id")
+    @Column(name = "stock_id", columnDefinition = "INT UNSIGNED")
     private Long stockId;
 
     @Column(name = "valid_from")

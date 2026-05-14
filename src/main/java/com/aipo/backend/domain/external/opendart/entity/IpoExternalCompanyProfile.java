@@ -38,7 +38,7 @@ public class IpoExternalCompanyProfile {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock_id")
+    @JoinColumn(name = "stock_id", columnDefinition = "INT UNSIGNED")
     private IpoStock stock;
 
     @Column(name = "provider", nullable = false, length = 30)

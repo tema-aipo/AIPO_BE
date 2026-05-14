@@ -27,7 +27,7 @@ public class IpoAttractionReason {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock_id", nullable = false)
+    @JoinColumn(name = "stock_id", nullable = false, columnDefinition = "INT UNSIGNED")
     private IpoStock stock;
 
     @Column(name = "title", nullable = false, length = 100)

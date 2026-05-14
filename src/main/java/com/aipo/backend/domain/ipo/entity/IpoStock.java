@@ -11,12 +11,12 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "ipo_stock")
+@Table(name = "ipo_main")
 public class IpoStock {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "stock_id")
+    @Column(name = "stock_id", columnDefinition = "INT UNSIGNED")
     private Long id;
 
     @Column(name = "stock_name", nullable = false, length = 100)

@@ -25,7 +25,7 @@ public class IpoSubscriptionCompetition {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock_id", nullable = false, unique = true)
+    @JoinColumn(name = "stock_id", nullable = false, unique = true, columnDefinition = "INT UNSIGNED")
     private IpoStock stock;
 
     @Enumerated(EnumType.STRING)

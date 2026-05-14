@@ -32,7 +32,7 @@ public class IpoDepositInfo {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock_id", nullable = false)
+    @JoinColumn(name = "stock_id", nullable = false, columnDefinition = "INT UNSIGNED")
     private IpoStock stock;
 
     @Column(name = "securities_company_name", nullable = false, length = 100)

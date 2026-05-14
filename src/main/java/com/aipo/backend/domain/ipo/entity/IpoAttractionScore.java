@@ -21,7 +21,7 @@ public class IpoAttractionScore {
 
     // 어느 공모주의 점수인지 연결
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock_id", nullable = false)
+    @JoinColumn(name = "stock_id", nullable = false, columnDefinition = "INT UNSIGNED")
     private IpoStock stock;
 
     // 총 매력지수

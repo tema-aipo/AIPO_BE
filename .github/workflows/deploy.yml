@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      # 필요하면 아래 브랜치도 추가
-      # - codex/aipo_backend
   workflow_dispatch:
 
 jobs:
@@ -31,15 +29,50 @@ jobs:
       - name: Build jar
         run: ./gradlew clean bootJar
 
+      - name: Check build output
+        run: |
+          set -e
+          echo "Current directory"
+          pwd
+
+          echo "Gradle build output"
+          ls -al build/libs
+
+          JAR_FILE="$(find build/libs -maxdepth 1 -type f -name "*.jar" ! -name "*plain.jar" | head -n 1)"
+          if [ -z "$JAR_FILE" ]; then
+            echo "No executable Spring Boot jar found in build/libs"
+            exit 1
+          fi
+
+          mkdir -p deploy
+          cp "$JAR_FILE" deploy/app.jar
+
+          echo "Deploy artifact"
+          ls -al deploy
+
+      - name: Prepare EC2 deploy directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "Prepare deploy directory"
+            rm -rf /tmp/aipo-deploy
+            mkdir -p /tmp/aipo-deploy
+            ls -al /tmp/aipo-deploy
+
       - name: Upload jar to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "build/libs/*.jar"
+          source: "deploy/app.jar"
           target: "/tmp/aipo-deploy"
-          strip_components: 2
+          strip_components: 1
 
       - name: Restart Spring Boot service
         uses: appleboy/ssh-action@v1.0.3
@@ -52,22 +85,37 @@ jobs:
 
             echo "Check uploaded jar"
             ls -al /tmp/aipo-deploy
+            if [ ! -f /tmp/aipo-deploy/app.jar ]; then
+              echo "Uploaded jar not found: /tmp/aipo-deploy/app.jar"
+              exit 1
+            fi
+
+            echo "Check app directory"
+            sudo mkdir -p /opt/aipo
+            sudo ls -al /opt/aipo || true
+
+            echo "Current service status"
+            sudo systemctl status aipo --no-pager || true
 
             echo "Stop service"
             sudo systemctl stop aipo || true
 
             echo "Kill duplicated java process"
             sudo pkill -f "/opt/aipo/app.jar" || true
+            sleep 5
 
             echo "Reload systemd"
             sudo systemctl daemon-reload
 
             echo "Replace app.jar"
-            sudo cp /tmp/aipo-deploy/*.jar /opt/aipo/app.jar
-            sudo chown ubuntu:ubuntu /opt/aipo/app.jar
+            sudo install -m 0644 /tmp/aipo-deploy/app.jar /opt/aipo/app.jar
+            sudo ls -al /opt/aipo
 
             echo "Start service"
             sudo systemctl start aipo
 
             echo "Check service status"
             sudo systemctl status aipo --no-pager
+
+            echo "Recent service logs"
+            sudo journalctl -u aipo --since "2 minutes ago" --no-pager || true

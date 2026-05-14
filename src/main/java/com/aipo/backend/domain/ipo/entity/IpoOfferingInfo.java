@@ -25,7 +25,7 @@ public class IpoOfferingInfo {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock_id", nullable = false, unique = true)
+    @JoinColumn(name = "stock_id", nullable = false, unique = true, columnDefinition = "INT UNSIGNED")
     private IpoStock stock;
 
     @Column(name = "market_cap", precision = 20, scale = 2)

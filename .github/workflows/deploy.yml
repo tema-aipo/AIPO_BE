@@ -54,13 +54,20 @@ jobs:
             ls -al /tmp/aipo-deploy
 
             echo "Stop service"
-            sudo systemctl stop aipo-backend
+            sudo systemctl stop aipo || true
+
+            echo "Kill duplicated java process"
+            sudo pkill -f "/opt/aipo/app.jar" || true
+
+            echo "Reload systemd"
+            sudo systemctl daemon-reload
 
             echo "Replace app.jar"
-            cp /tmp/aipo-deploy/*.jar /opt/aipo/app.jar
+            sudo cp /tmp/aipo-deploy/*.jar /opt/aipo/app.jar
+            sudo chown ubuntu:ubuntu /opt/aipo/app.jar
 
             echo "Start service"
-            sudo systemctl start aipo-backend
+            sudo systemctl start aipo
 
             echo "Check service status"
-            sudo systemctl status aipo-backend --no-pager
+            sudo systemctl status aipo --no-pager

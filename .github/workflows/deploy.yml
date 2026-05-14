@@ -82,6 +82,9 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
+            APP_DIR="/opt/aipo"
+            APP_JAR="$APP_DIR/app.jar"
+            APP_JAR_PATTERN="[/]opt/aipo/app.jar"
 
             echo "Check uploaded jar"
             ls -al /tmp/aipo-deploy
@@ -91,8 +94,8 @@ jobs:
             fi
 
             echo "Check app directory"
-            sudo mkdir -p /opt/aipo
-            sudo ls -al /opt/aipo || true
+            sudo mkdir -p "$APP_DIR"
+            sudo ls -al "$APP_DIR" || true
 
             echo "Current service status"
             sudo systemctl status aipo --no-pager || true
@@ -101,15 +104,15 @@ jobs:
             sudo systemctl stop aipo || true
 
             echo "Kill duplicated java process"
-            sudo pkill -f "[/]opt/aipo/app.jar" || true
+            sudo pkill -f "$APP_JAR_PATTERN" || true
             sleep 5
 
             echo "Reload systemd"
             sudo systemctl daemon-reload
 
             echo "Replace app.jar"
-            sudo install -m 0644 /tmp/aipo-deploy/app.jar /opt/aipo/app.jar
-            sudo ls -al /opt/aipo
+            sudo install -m 0644 /tmp/aipo-deploy/app.jar "$APP_JAR"
+            sudo ls -al "$APP_DIR"
 
             echo "Start service"
             sudo systemctl start aipo

@@ -101,7 +101,7 @@ jobs:
             sudo systemctl stop aipo || true
 
             echo "Kill duplicated java process"
-            sudo pkill -f "/opt/aipo/app.jar" || true
+            sudo pkill -f "[/]opt/aipo/app.jar" || true
             sleep 5
 
             echo "Reload systemd"

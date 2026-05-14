@@ -8,22 +8,32 @@ import com.aipo.backend.domain.chat.entity.ChatSession;
 import com.aipo.backend.domain.chat.entity.MessageRole;
 import com.aipo.backend.domain.chat.entity.MessageType;
 import com.aipo.backend.domain.chat.repository.ChatMessageRepository;
+import com.aipo.backend.domain.chatbot.client.PythonChatbotClient;
+import com.aipo.backend.domain.chatbot.dto.PythonChatRequest;
+import com.aipo.backend.domain.chatbot.dto.PythonChatResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ChatMessageService {
 
+    private static final int CHAT_HISTORY_LIMIT = 10;
+    private static final String DEFAULT_USER_TYPE = "balance";
+
     private final ChatSessionService chatSessionService;
     private final ChatMessageRepository chatMessageRepository;
+    private final PythonChatbotClient pythonChatbotClient;
 
     @Transactional
     public SendChatMessageResponse sendMessage(Long userId, Long sessionId, String question) {
         ChatSession chatSession = chatSessionService.getSession(userId, sessionId);
         long userMessageCount = chatMessageRepository.countByChatSession_IdAndMessageRole(sessionId, MessageRole.USER);
+        List<List<String>> chatHistory = createChatHistory(sessionId);
 
         int nextSequenceNo = chatMessageRepository.findTopByChatSession_IdOrderBySequenceNoDesc(sessionId)
                 .map(ChatMessage::getSequenceNo)
@@ -34,12 +44,19 @@ public class ChatMessageService {
                 ChatMessage.create(chatSession, MessageRole.USER, MessageType.TEXT, normalizedQuestion, nextSequenceNo)
         );
 
+        PythonChatResponse chatbotResponse = pythonChatbotClient.chat(new PythonChatRequest(
+                String.valueOf(userId),
+                normalizedQuestion,
+                DEFAULT_USER_TYPE,
+                chatHistory
+        ));
+
         ChatMessage assistantMessage = chatMessageRepository.save(
                 ChatMessage.create(
                         chatSession,
                         MessageRole.ASSISTANT,
                         MessageType.TEXT,
-                        createStubAnswer(normalizedQuestion),
+                        chatbotResponse.answer(),
                         nextSequenceNo + 1
                 )
         );
@@ -74,8 +91,20 @@ public class ChatMessageService {
         return normalized.substring(0, 27) + "...";
     }
 
-    private String createStubAnswer(String question) {
-        return "임시 답변입니다. 질문하신 내용은 \"" + question + "\" 입니다. 이후 AI 연동 시 실제 답변으로 대체됩니다.";
+    private List<List<String>> createChatHistory(Long sessionId) {
+        List<ChatMessage> messages = chatMessageRepository.findAllByChatSession_IdOrderBySequenceNoAsc(sessionId);
+        int fromIndex = Math.max(0, messages.size() - CHAT_HISTORY_LIMIT);
+
+        return messages.subList(fromIndex, messages.size()).stream()
+                .map(message -> List.of(toPythonHistoryRole(message.getMessageRole()), message.getContent()))
+                .toList();
+    }
+
+    private String toPythonHistoryRole(MessageRole messageRole) {
+        if (messageRole == MessageRole.USER) {
+            return "human";
+        }
+        return "ai";
     }
 
     private ChatMessageItem toMessageItem(ChatMessage message) {

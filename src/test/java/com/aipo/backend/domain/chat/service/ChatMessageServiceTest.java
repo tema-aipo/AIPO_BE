@@ -6,6 +6,8 @@ import com.aipo.backend.domain.chat.entity.ChatSession;
 import com.aipo.backend.domain.chat.entity.MessageRole;
 import com.aipo.backend.domain.chat.entity.MessageType;
 import com.aipo.backend.domain.chat.repository.ChatMessageRepository;
+import com.aipo.backend.domain.chatbot.client.PythonChatbotClient;
+import com.aipo.backend.domain.chatbot.dto.PythonChatResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +33,9 @@ class ChatMessageServiceTest {
     @Mock
     private ChatMessageRepository chatMessageRepository;
 
+    @Mock
+    private PythonChatbotClient pythonChatbotClient;
+
     @InjectMocks
     private ChatMessageService chatMessageService;
 
@@ -42,7 +48,9 @@ class ChatMessageServiceTest {
 
         when(chatSessionService.getSession(userId, sessionId)).thenReturn(session);
         when(chatMessageRepository.countByChatSession_IdAndMessageRole(sessionId, MessageRole.USER)).thenReturn(0L);
+        when(chatMessageRepository.findAllByChatSession_IdOrderBySequenceNoAsc(sessionId)).thenReturn(List.of());
         when(chatMessageRepository.findTopByChatSession_IdOrderBySequenceNoDesc(sessionId)).thenReturn(Optional.empty());
+        when(pythonChatbotClient.chat(any())).thenReturn(new PythonChatResponse("success", "AI 답변입니다.", String.valueOf(userId)));
         when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> {
             ChatMessage message = invocation.getArgument(0);
             if (message.getMessageRole() == MessageRole.USER) {
@@ -71,8 +79,10 @@ class ChatMessageServiceTest {
 
         when(chatSessionService.getSession(userId, sessionId)).thenReturn(session);
         when(chatMessageRepository.countByChatSession_IdAndMessageRole(sessionId, MessageRole.USER)).thenReturn(1L);
+        when(chatMessageRepository.findAllByChatSession_IdOrderBySequenceNoAsc(sessionId)).thenReturn(List.of());
         when(chatMessageRepository.findTopByChatSession_IdOrderBySequenceNoDesc(sessionId))
                 .thenReturn(Optional.of(message(session, 10L, MessageRole.ASSISTANT, "이전 답변", 2)));
+        when(pythonChatbotClient.chat(any())).thenReturn(new PythonChatResponse("success", "AI 답변입니다.", String.valueOf(userId)));
         when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         SendChatMessageResponse response = chatMessageService.sendMessage(userId, sessionId, "두 번째 질문");

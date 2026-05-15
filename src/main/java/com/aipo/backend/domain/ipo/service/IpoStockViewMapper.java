@@ -33,12 +33,26 @@ public final class IpoStockViewMapper {
         return firstText(stock.getCompanyName(), stock.getStockName(), stock.getCorpName(), "");
     }
 
+    public static String displayCompanyName(String companyName, String stockName, String corpName) {
+        return firstText(companyName, stockName, corpName, "");
+    }
+
     public static BigDecimal offerPrice(IpoStock stock) {
         if (stock.getConfirmedOfferPrice() != null) {
             return stock.getConfirmedOfferPrice();
         }
         if (stock.getOfferingPrice() != null) {
             return BigDecimal.valueOf(stock.getOfferingPrice());
+        }
+        return null;
+    }
+
+    public static BigDecimal offerPrice(BigDecimal confirmedOfferPrice, Integer offeringPrice) {
+        if (confirmedOfferPrice != null) {
+            return confirmedOfferPrice;
+        }
+        if (offeringPrice != null) {
+            return BigDecimal.valueOf(offeringPrice);
         }
         return null;
     }

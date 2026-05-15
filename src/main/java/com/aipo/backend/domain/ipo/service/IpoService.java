@@ -52,7 +52,7 @@ public class IpoService {
     }
 
     public IpoDetailResponse getIpoDetail(Long ipoId, Long userId) {
-        IpoStock ipoStock = ipoStockRepository.findById(ipoId)
+        IpoDetailProjection ipo = ipoStockRepository.findDetailByStockId(ipoId)
                 .orElseThrow(() -> new CustomException(ErrorCode.IPO_NOT_FOUND));
 
         List<IpoLeadManager> leadManagers = ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
@@ -69,34 +69,34 @@ public class IpoService {
         IpoOfferingInfo offeringInfo = ipoOfferingInfoRepository.findByStock_Id(ipoId).orElse(null);
 
         return new IpoDetailResponse(
-                ipoStock.getId(),
-                buildSummary(ipoStock, leadManagers, userId),
+                ipo.getStockId(),
+                buildSummary(ipo, leadManagers, userId),
                 buildAttraction(attractionScore, attractionReasons),
                 buildDemandForecast(demandForecast),
                 buildSubscriptionCompetition(subscriptionCompetition),
-                buildSchedule(ipoStock, schedules),
+                buildSchedule(ipo, schedules),
                 buildDepositInfos(depositInfos),
                 buildOfferingInfo(offeringInfo)
         );
     }
 
-    private SummarySection buildSummary(IpoStock ipoStock, List<IpoLeadManager> leadManagers, Long userId) {
+    private SummarySection buildSummary(IpoDetailProjection ipo, List<IpoLeadManager> leadManagers, Long userId) {
         boolean isFavorite = userId != null
-                && userFavoriteStockRepository.existsByUserIdAndStock_Id(userId, ipoStock.getId());
+                && userFavoriteStockRepository.existsByUserIdAndStock_Id(userId, ipo.getStockId());
 
         return new SummarySection(
-                IpoStockViewMapper.displayCompanyName(ipoStock),
-                ipoStock.getOneLineDescription(),
-                IpoStockViewMapper.offerPrice(ipoStock),
+                IpoStockViewMapper.displayCompanyName(ipo.getCompanyName(), ipo.getStockName(), ipo.getCorpName()),
+                ipo.getOneLineDescription(),
+                IpoStockViewMapper.offerPrice(ipo.getConfirmedOfferPrice(), ipo.getOfferingPrice()),
                 leadManagers.stream()
                         .map(IpoLeadManager::getManagerName)
                         .toList(),
                 new DateRange(
-                        IpoStockViewMapper.subscriptionStartDate(ipoStock),
-                        IpoStockViewMapper.subscriptionEndDate(ipoStock)
+                        subscriptionStartDate(ipo),
+                        subscriptionEndDate(ipo)
                 ),
                 isFavorite,
-                ipoStock.getMarketType()
+                ipo.getMarketType()
         );
     }
 
@@ -161,7 +161,7 @@ public class IpoService {
         );
     }
 
-    private ScheduleSection buildSchedule(IpoStock ipoStock, List<IpoSchedule> schedules) {
+    private ScheduleSection buildSchedule(IpoDetailProjection ipo, List<IpoSchedule> schedules) {
         LocalDate demandForecastStartDate = findScheduleDate(schedules, ScheduleType.DEMAND_FORECAST_START);
         LocalDate demandForecastEndDate = findScheduleDate(schedules, ScheduleType.DEMAND_FORECAST_END);
         LocalDate refundDate = findScheduleDate(schedules, ScheduleType.REFUND);
@@ -170,14 +170,30 @@ public class IpoService {
         return new ScheduleSection(
                 new DateRange(demandForecastStartDate, demandForecastEndDate),
                 new DateRange(
-                        IpoStockViewMapper.subscriptionStartDate(ipoStock),
-                        IpoStockViewMapper.subscriptionEndDate(ipoStock)
+                        subscriptionStartDate(ipo),
+                        subscriptionEndDate(ipo)
                 ),
                 refundDate,
-                listingDate != null ? listingDate : ipoStock.getListingDate(),
-                ipoStock.getDemandForecastDate(),
-                ipoStock.getRefundDate()
+                listingDate != null ? listingDate : IpoStockViewMapper.parseIsoDate(ipo.getListingDate()),
+                ipo.getDemandForecastDate(),
+                ipo.getRefundDate()
         );
+    }
+
+    private LocalDate subscriptionStartDate(IpoDetailProjection ipo) {
+        LocalDate startDate = IpoStockViewMapper.parseIsoDate(ipo.getSubscriptionStartDate());
+        if (startDate != null) {
+            return startDate;
+        }
+        return IpoStockViewMapper.parseSubscriptionDateText(ipo.getSubscriptionDate(), 0);
+    }
+
+    private LocalDate subscriptionEndDate(IpoDetailProjection ipo) {
+        LocalDate endDate = IpoStockViewMapper.parseIsoDate(ipo.getSubscriptionEndDate());
+        if (endDate != null) {
+            return endDate;
+        }
+        return IpoStockViewMapper.parseSubscriptionDateText(ipo.getSubscriptionDate(), 1);
     }
 
     private List<DepositInfoItem> buildDepositInfos(List<IpoDepositInfo> depositInfos) {

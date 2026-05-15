@@ -17,6 +17,7 @@ import com.aipo.backend.domain.ipo.entity.IpoSubscriptionCompetition;
 import com.aipo.backend.domain.ipo.entity.ScheduleType;
 import com.aipo.backend.domain.ipo.repository.IpoAttractionReasonRepository;
 import com.aipo.backend.domain.ipo.repository.IpoAttractionScoreRepository;
+import com.aipo.backend.domain.ipo.repository.IpoDetailProjection;
 import com.aipo.backend.domain.ipo.repository.IpoDemandForecastRepository;
 import com.aipo.backend.domain.ipo.repository.IpoDepositInfoRepository;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
@@ -134,7 +135,7 @@ class IpoServiceTest {
                 LocalDate.of(2026, 5, 8)
         );
 
-        when(ipoStockRepository.findById(ipoId)).thenReturn(Optional.of(ipoStock));
+        when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
                 leadManager(ipoStock, "주관사A", 1),
                 leadManager(ipoStock, "주관사B", 2)
@@ -192,7 +193,7 @@ class IpoServiceTest {
     void getIpoDetail_whenIpoDoesNotExist_throwIpoNotFound() {
         Long ipoId = 999L;
 
-        when(ipoStockRepository.findById(ipoId)).thenReturn(Optional.empty());
+        when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ipoService.getIpoDetail(ipoId, 1L))
                 .isInstanceOf(CustomException.class)
@@ -235,7 +236,7 @@ class IpoServiceTest {
                 LocalDate.of(2026, 6, 15)
         );
 
-        when(ipoStockRepository.findById(ipoId)).thenReturn(Optional.of(ipoStock));
+        when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(ipoId)).thenReturn(Optional.empty());
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
@@ -324,7 +325,7 @@ class IpoServiceTest {
     }
 
     private void stubDefaultDetailSources(Long ipoId, IpoStock ipoStock) {
-        when(ipoStockRepository.findById(ipoId)).thenReturn(Optional.of(ipoStock));
+        when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(ipoId)).thenReturn(Optional.empty());
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
@@ -355,6 +356,32 @@ class IpoServiceTest {
         ReflectionTestUtils.setField(ipoStock, "createdAt", LocalDateTime.now());
         ReflectionTestUtils.setField(ipoStock, "updatedAt", LocalDateTime.now());
         return ipoStock;
+    }
+
+    private IpoDetailProjection ipoDetailProjection(IpoStock ipoStock) {
+        return new TestIpoDetailProjection(
+                ipoStock.getId(),
+                ipoStock.getCompanyName(),
+                ipoStock.getStockName(),
+                ipoStock.getCorpName(),
+                ipoStock.getStockCode(),
+                ipoStock.getOfferingPrice(),
+                ipoStock.getConfirmedOfferPrice(),
+                ipoStock.getAttractScore(),
+                ipoStock.getRecentGrowthScore(),
+                ipoStock.getMarketType(),
+                ipoStock.getOneLineDescription(),
+                ipoStock.getSubscriptionDate(),
+                ipoStock.getDemandForecastDate(),
+                ipoStock.getRefundDate(),
+                toIsoDate(ipoStock.getListingDate()),
+                toIsoDate(ipoStock.getSubscriptionStartDate()),
+                toIsoDate(ipoStock.getSubscriptionEndDate())
+        );
+    }
+
+    private String toIsoDate(LocalDate date) {
+        return date == null ? null : date.toString();
     }
 
     private IpoLeadManager leadManager(IpoStock ipoStock, String managerName, int displayOrder) {
@@ -463,6 +490,112 @@ class IpoServiceTest {
             return constructor.newInstance();
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to instantiate " + type.getSimpleName(), exception);
+        }
+    }
+
+    private record TestIpoDetailProjection(
+            Long stockId,
+            String companyName,
+            String stockName,
+            String corpName,
+            String stockCode,
+            Integer offeringPrice,
+            BigDecimal confirmedOfferPrice,
+            Float attractScore,
+            Integer recentGrowthScore,
+            String marketType,
+            String oneLineDescription,
+            String subscriptionDate,
+            String demandForecastDate,
+            String refundDate,
+            String listingDate,
+            String subscriptionStartDate,
+            String subscriptionEndDate
+    ) implements IpoDetailProjection {
+
+        @Override
+        public Long getStockId() {
+            return stockId;
+        }
+
+        @Override
+        public String getCompanyName() {
+            return companyName;
+        }
+
+        @Override
+        public String getStockName() {
+            return stockName;
+        }
+
+        @Override
+        public String getCorpName() {
+            return corpName;
+        }
+
+        @Override
+        public String getStockCode() {
+            return stockCode;
+        }
+
+        @Override
+        public Integer getOfferingPrice() {
+            return offeringPrice;
+        }
+
+        @Override
+        public BigDecimal getConfirmedOfferPrice() {
+            return confirmedOfferPrice;
+        }
+
+        @Override
+        public Float getAttractScore() {
+            return attractScore;
+        }
+
+        @Override
+        public Integer getRecentGrowthScore() {
+            return recentGrowthScore;
+        }
+
+        @Override
+        public String getMarketType() {
+            return marketType;
+        }
+
+        @Override
+        public String getOneLineDescription() {
+            return oneLineDescription;
+        }
+
+        @Override
+        public String getSubscriptionDate() {
+            return subscriptionDate;
+        }
+
+        @Override
+        public String getDemandForecastDate() {
+            return demandForecastDate;
+        }
+
+        @Override
+        public String getRefundDate() {
+            return refundDate;
+        }
+
+        @Override
+        public String getListingDate() {
+            return listingDate;
+        }
+
+        @Override
+        public String getSubscriptionStartDate() {
+            return subscriptionStartDate;
+        }
+
+        @Override
+        public String getSubscriptionEndDate() {
+            return subscriptionEndDate;
         }
     }
 }

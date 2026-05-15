@@ -18,7 +18,11 @@ public final class IpoStockViewMapper {
     }
 
     public static String displayName(IpoStock stock) {
-        return firstText(stock.getCompanyName(), stock.getStockName(), stock.getCorpName(), "");
+        return displayName(stock.getCompanyName(), stock.getStockName(), stock.getCorpName());
+    }
+
+    public static String displayName(String companyName, String stockName, String corpName) {
+        return firstText(companyName, stockName, corpName, "");
     }
 
     public static String displayStockName(IpoStock stock) {
@@ -53,14 +57,29 @@ public final class IpoStockViewMapper {
         if (stock.getSubscriptionStartDate() != null) {
             return stock.getSubscriptionStartDate();
         }
-        return parseSubscriptionDate(stock.getSubscriptionDate(), 0);
+        return parseSubscriptionDateText(stock.getSubscriptionDate(), 0);
     }
 
     public static LocalDate subscriptionEndDate(IpoStock stock) {
         if (stock.getSubscriptionEndDate() != null) {
             return stock.getSubscriptionEndDate();
         }
-        return parseSubscriptionDate(stock.getSubscriptionDate(), 1);
+        return parseSubscriptionDateText(stock.getSubscriptionDate(), 1);
+    }
+
+    public static LocalDate parseIsoDate(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value.trim());
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
+    }
+
+    public static LocalDate parseSubscriptionDateText(String value, int index) {
+        return parseSubscriptionDate(value, index);
     }
 
     private static String firstText(String... values) {

@@ -24,121 +24,165 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
 
     @Override
     public List<FeaturedIpoItem> findFeaturedIpos() {
-        return em.createQuery("""
-                select s, count(v.id)
-                from IpoStock s
-                left join IpoViewLog v on v.stock = s
-                group by s
-                order by count(v.id) desc,
-                    coalesce(s.recentGrowthScore, 0) desc,
-                    coalesce(s.attractScore, 0.0) desc,
-                    s.createdAt desc
-                """, Object[].class)
+        return em.createNativeQuery("""
+                select
+                    m.stock_id,
+                    m.company_name,
+                    m.stock_name,
+                    m.corp_name,
+                    count(v.view_log_id) as view_count
+                from ipo_main m
+                left join ipo_view_log v on v.stock_id = m.stock_id
+                group by m.stock_id, m.company_name, m.stock_name, m.corp_name,
+                    m.recent_growth_score, m.attract_score, m.created_at
+                order by count(v.view_log_id) desc,
+                    coalesce(m.recent_growth_score, 0) desc,
+                    coalesce(m.attract_score, 0) desc,
+                    m.created_at desc
+                """)
                 .setMaxResults(5)
                 .getResultList()
                 .stream()
-                .map(row -> {
-                    IpoStock stock = (IpoStock) row[0];
-                    Long viewCount = (Long) row[1];
-                    return new FeaturedIpoItem(stock.getId(), 0, IpoStockViewMapper.displayName(stock), viewCount);
-                })
+                .map(row -> toFeaturedIpoItem((Object[]) row))
                 .toList();
     }
 
     @Override
     public List<TrendingIpoItem> findTrendingIpos() {
-        return em.createQuery("""
-                select s, count(v.id)
-                from IpoStock s
-                left join IpoViewLog v on v.stock = s
-                group by s
-                order by coalesce(s.recentGrowthScore, 0) desc,
-                    coalesce(s.attractScore, 0.0) desc,
-                    count(v.id) desc
-                """, Object[].class)
+        return em.createNativeQuery("""
+                select
+                    m.stock_id,
+                    m.company_name,
+                    m.stock_name,
+                    m.corp_name,
+                    m.recent_growth_score,
+                    m.attract_score,
+                    count(v.view_log_id) as view_count
+                from ipo_main m
+                left join ipo_view_log v on v.stock_id = m.stock_id
+                group by m.stock_id, m.company_name, m.stock_name, m.corp_name,
+                    m.recent_growth_score, m.attract_score
+                order by coalesce(m.recent_growth_score, 0) desc,
+                    coalesce(m.attract_score, 0) desc,
+                    count(v.view_log_id) desc
+                """)
                 .setMaxResults(3)
                 .getResultList()
                 .stream()
-                .map(row -> {
-                    IpoStock stock = (IpoStock) row[0];
-                    Long viewCount = (Long) row[1];
-                    return new TrendingIpoItem(
-                            stock.getId(),
-                            0,
-                            IpoStockViewMapper.displayName(stock),
-                            IpoStockViewMapper.displayScore(stock),
-                            viewCount
-                    );
-                })
+                .map(row -> toTrendingIpoItem((Object[]) row))
                 .toList();
     }
 
     @Override
     public List<AttractivenessItem> findAttractivenessByRecentGrowth() {
-        return em.createQuery("""
-                select s
-                from IpoStock s
-                order by coalesce(s.recentGrowthScore, 0) desc,
-                    coalesce(s.attractScore, 0.0) desc,
-                    s.createdAt desc
-                """, IpoStock.class)
+        return em.createNativeQuery("""
+                select
+                    m.stock_id,
+                    m.company_name,
+                    m.stock_name,
+                    m.corp_name,
+                    m.recent_growth_score,
+                    m.attract_score,
+                    date_format(nullif(m.subscription_start_date, '0000-00-00'), '%Y-%m-%d') as subscription_start_date,
+                    date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
+                    m.subscription_date,
+                    m.demand_forecast_date,
+                    m.refund_date
+                from ipo_main m
+                order by coalesce(m.recent_growth_score, 0) desc,
+                    coalesce(m.attract_score, 0) desc,
+                    m.created_at desc
+                """)
                 .setMaxResults(10)
                 .getResultList()
                 .stream()
-                .map(this::toAttractivenessItem)
+                .map(row -> toAttractivenessItem((Object[]) row))
                 .toList();
     }
 
     @Override
     public List<AttractivenessItem> findAttractivenessBySubscriptionUpcoming() {
-        List<IpoStock> stocks = em.createQuery("""
-                select s
-                from IpoStock s
-                where s.subscriptionStartDate >= :today
-                    or s.subscriptionEndDate >= :today
-                order by coalesce(s.subscriptionStartDate, s.subscriptionEndDate) asc,
-                    coalesce(s.recentGrowthScore, 0) desc,
-                    coalesce(s.attractScore, 0.0) desc
-                """, IpoStock.class)
+        List<Object[]> rows = em.createNativeQuery("""
+                select
+                    m.stock_id,
+                    m.company_name,
+                    m.stock_name,
+                    m.corp_name,
+                    m.recent_growth_score,
+                    m.attract_score,
+                    date_format(nullif(m.subscription_start_date, '0000-00-00'), '%Y-%m-%d') as subscription_start_date,
+                    date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
+                    m.subscription_date,
+                    m.demand_forecast_date,
+                    m.refund_date
+                from ipo_main m
+                where nullif(m.subscription_start_date, '0000-00-00') >= :today
+                    or nullif(m.subscription_end_date, '0000-00-00') >= :today
+                order by coalesce(nullif(m.subscription_start_date, '0000-00-00'), nullif(m.subscription_end_date, '0000-00-00')) asc,
+                    coalesce(m.recent_growth_score, 0) desc,
+                    coalesce(m.attract_score, 0) desc
+                """)
                 .setParameter("today", LocalDate.now())
                 .setMaxResults(10)
                 .getResultList();
 
-        if (stocks.isEmpty()) {
-            stocks = em.createQuery("""
-                    select s
-                    from IpoStock s
-                    order by coalesce(s.recentGrowthScore, 0) desc,
-                        coalesce(s.attractScore, 0.0) desc,
-                        s.createdAt desc
-                    """, IpoStock.class)
+        if (rows.isEmpty()) {
+            rows = em.createNativeQuery("""
+                    select
+                        m.stock_id,
+                        m.company_name,
+                        m.stock_name,
+                        m.corp_name,
+                        m.recent_growth_score,
+                        m.attract_score,
+                        date_format(nullif(m.subscription_start_date, '0000-00-00'), '%Y-%m-%d') as subscription_start_date,
+                        date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
+                        m.subscription_date,
+                        m.demand_forecast_date,
+                        m.refund_date
+                    from ipo_main m
+                    order by coalesce(m.recent_growth_score, 0) desc,
+                        coalesce(m.attract_score, 0) desc,
+                        m.created_at desc
+                    """)
                     .setMaxResults(5)
                     .getResultList();
         }
 
-        return stocks.stream()
-                .map(this::toAttractivenessItem)
+        return rows.stream()
+                .map(row -> toAttractivenessItem((Object[]) row))
                 .toList();
     }
 
     @Override
     public List<AttractivenessItem> findAttractivenessByFavorite() {
-        return em.createQuery("""
-                select s
-                from IpoStock s
+        return em.createNativeQuery("""
+                select
+                    m.stock_id,
+                    m.company_name,
+                    m.stock_name,
+                    m.corp_name,
+                    m.recent_growth_score,
+                    m.attract_score,
+                    date_format(nullif(m.subscription_start_date, '0000-00-00'), '%Y-%m-%d') as subscription_start_date,
+                    date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
+                    m.subscription_date,
+                    m.demand_forecast_date,
+                    m.refund_date
+                from ipo_main m
                 order by (
-                    select count(f.id)
-                    from UserFavoriteStock f
-                    where f.stock = s
+                    select count(f.favorite_id)
+                    from user_favorite_stock f
+                    where f.stock_id = m.stock_id
                 ) desc,
-                coalesce(s.recentGrowthScore, 0) desc,
-                coalesce(s.attractScore, 0.0) desc,
-                s.createdAt desc
-                """, IpoStock.class)
+                coalesce(m.recent_growth_score, 0) desc,
+                coalesce(m.attract_score, 0) desc,
+                m.created_at desc
+                """)
                 .setMaxResults(10)
                 .getResultList()
                 .stream()
-                .map(this::toAttractivenessItem)
+                .map(row -> toAttractivenessItem((Object[]) row))
                 .toList();
     }
 
@@ -219,6 +263,79 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 stock.getDemandForecastDate(),
                 stock.getRefundDate()
         );
+    }
+
+    private FeaturedIpoItem toFeaturedIpoItem(Object[] row) {
+        return new FeaturedIpoItem(
+                toLong(row[0]),
+                0,
+                IpoStockViewMapper.displayName(toString(row[1]), toString(row[2]), toString(row[3])),
+                toLong(row[4])
+        );
+    }
+
+    private TrendingIpoItem toTrendingIpoItem(Object[] row) {
+        return new TrendingIpoItem(
+                toLong(row[0]),
+                0,
+                IpoStockViewMapper.displayName(toString(row[1]), toString(row[2]), toString(row[3])),
+                displayScore(row[4], row[5]),
+                toLong(row[6])
+        );
+    }
+
+    private AttractivenessItem toAttractivenessItem(Object[] row) {
+        LocalDate startDate = IpoStockViewMapper.parseIsoDate(toString(row[6]));
+        LocalDate endDate = IpoStockViewMapper.parseIsoDate(toString(row[7]));
+        String subscriptionDate = toString(row[8]);
+
+        return new AttractivenessItem(
+                toLong(row[0]),
+                IpoStockViewMapper.displayName(toString(row[1]), toString(row[2]), toString(row[3])),
+                displayScore(row[4], row[5]),
+                startDate != null ? startDate : IpoStockViewMapper.parseSubscriptionDateText(subscriptionDate, 0),
+                endDate != null ? endDate : IpoStockViewMapper.parseSubscriptionDateText(subscriptionDate, 1),
+                null,
+                toString(row[9]),
+                toString(row[10])
+        );
+    }
+
+    private Integer displayScore(Object recentGrowthScore, Object attractScore) {
+        Integer recentGrowth = toInteger(recentGrowthScore);
+        if (recentGrowth != null) {
+            return recentGrowth;
+        }
+        Float attract = toFloat(attractScore);
+        if (attract != null) {
+            return Math.round(attract);
+        }
+        return 0;
+    }
+
+    private Long toLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return null;
+    }
+
+    private Integer toInteger(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return null;
+    }
+
+    private Float toFloat(Object value) {
+        if (value instanceof Number number) {
+            return number.floatValue();
+        }
+        return null;
+    }
+
+    private String toString(Object value) {
+        return value == null ? null : value.toString();
     }
 
     private String resolveSortExpression(String sort) {

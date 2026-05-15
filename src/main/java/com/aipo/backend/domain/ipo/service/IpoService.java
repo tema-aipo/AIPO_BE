@@ -85,13 +85,16 @@ public class IpoService {
                 && userFavoriteStockRepository.existsByUserIdAndStock_Id(userId, ipoStock.getId());
 
         return new SummarySection(
-                ipoStock.getCompanyName(),
+                IpoStockViewMapper.displayCompanyName(ipoStock),
                 ipoStock.getOneLineDescription(),
-                ipoStock.getConfirmedOfferPrice(),
+                IpoStockViewMapper.offerPrice(ipoStock),
                 leadManagers.stream()
                         .map(IpoLeadManager::getManagerName)
                         .toList(),
-                new DateRange(ipoStock.getSubscriptionStartDate(), ipoStock.getSubscriptionEndDate()),
+                new DateRange(
+                        IpoStockViewMapper.subscriptionStartDate(ipoStock),
+                        IpoStockViewMapper.subscriptionEndDate(ipoStock)
+                ),
                 isFavorite,
                 ipoStock.getMarketType()
         );
@@ -166,9 +169,14 @@ public class IpoService {
 
         return new ScheduleSection(
                 new DateRange(demandForecastStartDate, demandForecastEndDate),
-                new DateRange(ipoStock.getSubscriptionStartDate(), ipoStock.getSubscriptionEndDate()),
+                new DateRange(
+                        IpoStockViewMapper.subscriptionStartDate(ipoStock),
+                        IpoStockViewMapper.subscriptionEndDate(ipoStock)
+                ),
                 refundDate,
-                listingDate != null ? listingDate : ipoStock.getListingDate()
+                listingDate != null ? listingDate : ipoStock.getListingDate(),
+                ipoStock.getDemandForecastDate(),
+                ipoStock.getRefundDate()
         );
     }
 

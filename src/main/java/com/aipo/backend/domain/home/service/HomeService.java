@@ -74,7 +74,9 @@ public class HomeService {
                         item.score(),
                         item.subscriptionStartDate(),
                         item.subscriptionEndDate(),
-                        leadManagerMap.getOrDefault(item.ipoId(), "-")
+                        leadManagerMap.getOrDefault(item.ipoId(), "-"),
+                        item.demandForecastDate(),
+                        item.refundDate()
                 ))
                 .toList();
     }

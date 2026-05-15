@@ -4,10 +4,14 @@ import com.aipo.backend.domain.home.dto.AttractivenessItem;
 import com.aipo.backend.domain.home.dto.FeaturedIpoItem;
 import com.aipo.backend.domain.home.dto.TrendingIpoItem;
 import com.aipo.backend.domain.ipo.dto.IpoListItem;
+import com.aipo.backend.domain.ipo.entity.IpoStock;
+import com.aipo.backend.domain.ipo.service.IpoStockViewMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
@@ -20,123 +24,122 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
 
     @Override
     public List<FeaturedIpoItem> findFeaturedIpos() {
-        // 조회 로그를 기준으로 많이 본 공모주를 상단 대표 종목으로 사용
-        // 순위는 서비스에서 1,2 형태로 다시 붙인다.
         return em.createQuery("""
-                select new com.aipo.backend.domain.home.dto.FeaturedIpoItem(
-                    s.id,
-                    0,
-                    s.stockName,
-                    count(v.id)
-                )
-                from IpoViewLog v
-                join v.stock s
-                group by s.id, s.stockName
-                order by count(v.id) desc
-                """, FeaturedIpoItem.class)
-                .setMaxResults(2)
-                .getResultList();
+                select s, count(v.id)
+                from IpoStock s
+                left join IpoViewLog v on v.stock = s
+                group by s
+                order by count(v.id) desc,
+                    coalesce(s.recentGrowthScore, 0) desc,
+                    coalesce(s.attractScore, 0.0) desc,
+                    s.createdAt desc
+                """, Object[].class)
+                .setMaxResults(5)
+                .getResultList()
+                .stream()
+                .map(row -> {
+                    IpoStock stock = (IpoStock) row[0];
+                    Long viewCount = (Long) row[1];
+                    return new FeaturedIpoItem(stock.getId(), 0, IpoStockViewMapper.displayName(stock), viewCount);
+                })
+                .toList();
     }
 
     @Override
     public List<TrendingIpoItem> findTrendingIpos() {
-        // 지금 버전에서는 recentGrowthScore를 changeRate처럼 사용한다.
-        // 이후 실제 로그 비교 로직으로 바꿀 수 있다.
         return em.createQuery("""
-                select new com.aipo.backend.domain.home.dto.TrendingIpoItem(
-                    s.id,
-                    0,
-                    s.stockName,
-                    coalesce(s.recentGrowthScore, 0),
-                    count(v.id)
-                )
+                select s, count(v.id)
                 from IpoStock s
                 left join IpoViewLog v on v.stock = s
-                group by s.id, s.stockName, s.recentGrowthScore
-                order by coalesce(s.recentGrowthScore, 0) desc, count(v.id) desc
-                """, TrendingIpoItem.class)
+                group by s
+                order by coalesce(s.recentGrowthScore, 0) desc,
+                    coalesce(s.attractScore, 0.0) desc,
+                    count(v.id) desc
+                """, Object[].class)
                 .setMaxResults(3)
-                .getResultList();
+                .getResultList()
+                .stream()
+                .map(row -> {
+                    IpoStock stock = (IpoStock) row[0];
+                    Long viewCount = (Long) row[1];
+                    return new TrendingIpoItem(
+                            stock.getId(),
+                            0,
+                            IpoStockViewMapper.displayName(stock),
+                            IpoStockViewMapper.displayScore(stock),
+                            viewCount
+                    );
+                })
+                .toList();
     }
 
     @Override
     public List<AttractivenessItem> findAttractivenessByRecentGrowth() {
-        // 최근 성장순 탭:
-        // 1) recentGrowthScore 높은 순
-        // 2) 같은 경우 totalScore 높은 순
         return em.createQuery("""
-                select new com.aipo.backend.domain.home.dto.AttractivenessItem(
-                    s.id,
-                    s.stockName,
-                    a.totalScore,
-                    s.subscriptionStartDate,
-                    s.subscriptionEndDate
-                )
-                from IpoAttractionScore a
-                join a.stock s
-                where a.calculatedAt = (
-                    select max(a2.calculatedAt)
-                    from IpoAttractionScore a2
-                    where a2.stock = s
-                )
-                order by coalesce(s.recentGrowthScore, 0) desc, a.totalScore desc
-                """, AttractivenessItem.class)
+                select s
+                from IpoStock s
+                order by coalesce(s.recentGrowthScore, 0) desc,
+                    coalesce(s.attractScore, 0.0) desc,
+                    s.createdAt desc
+                """, IpoStock.class)
                 .setMaxResults(10)
-                .getResultList();
+                .getResultList()
+                .stream()
+                .map(this::toAttractivenessItem)
+                .toList();
     }
 
     @Override
     public List<AttractivenessItem> findAttractivenessBySubscriptionUpcoming() {
-        // 청약 예정순 탭:
-        // 청약 시작일이 빠른 순으로 정렬
-        return em.createQuery("""
-                select new com.aipo.backend.domain.home.dto.AttractivenessItem(
-                    s.id,
-                    s.stockName,
-                    a.totalScore,
-                    s.subscriptionStartDate,
-                    s.subscriptionEndDate
-                )
-                from IpoAttractionScore a
-                join a.stock s
-                where a.calculatedAt = (
-                    select max(a2.calculatedAt)
-                    from IpoAttractionScore a2
-                    where a2.stock = s
-                )
-                order by s.subscriptionStartDate asc, a.totalScore desc
-                """, AttractivenessItem.class)
+        List<IpoStock> stocks = em.createQuery("""
+                select s
+                from IpoStock s
+                where s.subscriptionStartDate >= :today
+                    or s.subscriptionEndDate >= :today
+                order by coalesce(s.subscriptionStartDate, s.subscriptionEndDate) asc,
+                    coalesce(s.recentGrowthScore, 0) desc,
+                    coalesce(s.attractScore, 0.0) desc
+                """, IpoStock.class)
+                .setParameter("today", LocalDate.now())
                 .setMaxResults(10)
                 .getResultList();
+
+        if (stocks.isEmpty()) {
+            stocks = em.createQuery("""
+                    select s
+                    from IpoStock s
+                    order by coalesce(s.recentGrowthScore, 0) desc,
+                        coalesce(s.attractScore, 0.0) desc,
+                        s.createdAt desc
+                    """, IpoStock.class)
+                    .setMaxResults(5)
+                    .getResultList();
+        }
+
+        return stocks.stream()
+                .map(this::toAttractivenessItem)
+                .toList();
     }
 
     @Override
     public List<AttractivenessItem> findAttractivenessByFavorite() {
-        // 관심 종목순 탭:
-        // user_favorite_stock에 많이 등록된 종목부터 정렬
         return em.createQuery("""
-                select new com.aipo.backend.domain.home.dto.AttractivenessItem(
-                    s.id,
-                    s.stockName,
-                    a.totalScore,
-                    s.subscriptionStartDate,
-                    s.subscriptionEndDate
-                )
-                from IpoAttractionScore a
-                join a.stock s
-                where a.calculatedAt = (
-                    select max(a2.calculatedAt)
-                    from IpoAttractionScore a2
-                    where a2.stock = s
-                )
+                select s
+                from IpoStock s
                 order by (
                     select count(f.id)
                     from UserFavoriteStock f
                     where f.stock = s
-                ) desc, a.totalScore desc
-                """, AttractivenessItem.class)
+                ) desc,
+                coalesce(s.recentGrowthScore, 0) desc,
+                coalesce(s.attractScore, 0.0) desc,
+                s.createdAt desc
+                """, IpoStock.class)
                 .setMaxResults(10)
-                .getResultList();
+                .getResultList()
+                .stream()
+                .map(this::toAttractivenessItem)
+                .toList();
     }
 
     @Override
@@ -145,19 +148,7 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
         String keywordPattern = toKeywordPattern(keyword);
 
         var query = em.createQuery("""
-                select new com.aipo.backend.domain.ipo.dto.IpoListItem(
-                    s.id,
-                    s.stockName,
-                    s.companyName,
-                    s.marketType,
-                    s.oneLineDescription,
-                    s.confirmedOfferPrice,
-                    s.subscriptionStartDate,
-                    s.subscriptionEndDate,
-                    s.listingDate,
-                    a.totalScore,
-                    s.recentGrowthScore
-                )
+                select s, a.totalScore
                 from IpoStock s
                 left join IpoAttractionScore a
                     on a.stock = s
@@ -168,15 +159,19 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     )
                 where (:keyword is null
                     or lower(s.stockName) like :keyword
-                    or lower(s.companyName) like :keyword)
+                    or lower(s.companyName) like :keyword
+                    or lower(s.corpName) like :keyword)
                 order by %s
-                """.formatted(orderBy), IpoListItem.class);
+                """.formatted(orderBy), Object[].class);
 
         query.setParameter("keyword", keywordPattern);
         return query
                 .setFirstResult(page * size)
                 .setMaxResults(size)
-                .getResultList();
+                .getResultList()
+                .stream()
+                .map(row -> toIpoListItem((IpoStock) row[0], (Integer) row[1]))
+                .toList();
     }
 
     @Override
@@ -188,10 +183,42 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 from IpoStock s
                 where (:keyword is null
                     or lower(s.stockName) like :keyword
-                    or lower(s.companyName) like :keyword)
+                    or lower(s.companyName) like :keyword
+                    or lower(s.corpName) like :keyword)
                 """, Long.class)
                 .setParameter("keyword", keywordPattern)
                 .getSingleResult();
+    }
+
+    private AttractivenessItem toAttractivenessItem(IpoStock stock) {
+        return new AttractivenessItem(
+                stock.getId(),
+                IpoStockViewMapper.displayName(stock),
+                IpoStockViewMapper.displayScore(stock),
+                IpoStockViewMapper.subscriptionStartDate(stock),
+                IpoStockViewMapper.subscriptionEndDate(stock),
+                null,
+                stock.getDemandForecastDate(),
+                stock.getRefundDate()
+        );
+    }
+
+    private IpoListItem toIpoListItem(IpoStock stock, Integer attractionScore) {
+        return new IpoListItem(
+                stock.getId(),
+                IpoStockViewMapper.displayStockName(stock),
+                IpoStockViewMapper.displayCompanyName(stock),
+                stock.getMarketType(),
+                stock.getOneLineDescription(),
+                IpoStockViewMapper.offerPrice(stock),
+                IpoStockViewMapper.subscriptionStartDate(stock),
+                IpoStockViewMapper.subscriptionEndDate(stock),
+                stock.getListingDate(),
+                BigDecimal.valueOf(attractionScore != null ? attractionScore : IpoStockViewMapper.displayScore(stock)),
+                IpoStockViewMapper.displayScore(stock),
+                stock.getDemandForecastDate(),
+                stock.getRefundDate()
+        );
     }
 
     private String resolveSortExpression(String sort) {
@@ -204,8 +231,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
             case "subscriptionEndDate" -> "s.subscriptionEndDate";
             case "listingDate" -> "s.listingDate";
             case "confirmedOfferPrice" -> "s.confirmedOfferPrice";
-            case "attractionScore" -> "a.totalScore";
-            case "recentGrowthScore" -> "s.recentGrowthScore";
+            case "attractionScore" -> "coalesce(s.recentGrowthScore, 0)";
+            case "recentGrowthScore" -> "coalesce(s.recentGrowthScore, 0)";
             case "stockName" -> "s.stockName";
             case "companyName" -> "s.companyName";
             default -> DEFAULT_SORT_EXPRESSION;

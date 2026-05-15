@@ -19,11 +19,14 @@ public class IpoStock {
     @Column(name = "stock_id", columnDefinition = "INT UNSIGNED")
     private Long id;
 
-    @Column(name = "stock_name", nullable = false, length = 100)
+    @Column(name = "stock_name", length = 100)
     private String stockName;
 
-    @Column(name = "company_name", nullable = false, length = 100)
+    @Column(name = "company_name", length = 100)
     private String companyName;
+
+    @Column(name = "corp_name", length = 100)
+    private String corpName;
 
     @Column(name = "stock_code", length = 20)
     private String stockCode;
@@ -40,6 +43,9 @@ public class IpoStock {
     @Column(name = "confirmed_offer_price", precision = 15, scale = 2)
     private BigDecimal confirmedOfferPrice;
 
+    @Column(name = "offering_price")
+    private Integer offeringPrice;
+
     @Column(name = "subscription_start_date")
     private LocalDate subscriptionStartDate;
 
@@ -51,6 +57,18 @@ public class IpoStock {
 
     @Column(name = "recent_growth_score")
     private Integer recentGrowthScore;
+
+    @Column(name = "attract_score")
+    private Float attractScore;
+
+    @Column(name = "subscription_date", length = 50)
+    private String subscriptionDate;
+
+    @Column(name = "demand_forecast_date", length = 50)
+    private String demandForecastDate;
+
+    @Column(name = "refund_date", length = 50)
+    private String refundDate;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

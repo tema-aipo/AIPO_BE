@@ -22,6 +22,7 @@ import com.aipo.backend.domain.user.repository.UserRepository;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,9 +38,9 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class InvestmentProfileService {
 
-    private static final int REQUIRED_QUESTION_COUNT = 6;
     private static final String DEFAULT_START_BUTTON_LABEL = "AIPO 시작하기";
     private static final String DEFAULT_NEXT_ACTION = "LOGIN";
     private static final String NOT_TESTED_LABEL = "분석 대기중";
@@ -148,18 +149,26 @@ public class InvestmentProfileService {
         Map<Long, InvestmentProfileQuestion> questionById = toQuestionMap(questions);
         Map<Long, InvestmentProfileOption> optionById = toOptionMap(questionById.keySet());
 
-        int totalScore = 0;
+        double weightedScore = 0;
         for (InvestmentProfileAnswerRequest answer : answers) {
             InvestmentProfileOption option = optionById.get(answer.optionId());
             if (option == null || !Objects.equals(option.getQuestion().getId(), answer.questionId())) {
+                logInvalidSubmission(
+                        "option does not belong to submitted question",
+                        version,
+                        answers,
+                        questionById.keySet()
+                );
                 throw new CustomException(ErrorCode.INVALID_INVESTMENT_PROFILE_SUBMISSION);
             }
-            totalScore += option.getScore();
+            InvestmentProfileQuestion question = questionById.get(answer.questionId());
+            weightedScore += weightedScore(question, option.getScore());
         }
 
+        int totalScore = (int) Math.round(weightedScore);
         resultRepository.clearCurrentResult(userId);
         UserInvestmentProfileResult result = resultRepository.save(
-                UserInvestmentProfileResult.createCompleted(userId, version, determineProfileType(totalScore), totalScore)
+                UserInvestmentProfileResult.createCompleted(userId, version, determineProfileType(weightedScore), totalScore)
         );
 
         answerRepository.saveAll(answers.stream()
@@ -179,13 +188,25 @@ public class InvestmentProfileService {
             List<InvestmentProfileAnswerRequest> answers
     ) {
         validateVersion(version);
-        if (questions.size() != REQUIRED_QUESTION_COUNT || answers.size() != REQUIRED_QUESTION_COUNT) {
+        if (answers == null || questions.size() != answers.size()) {
+            logInvalidSubmission(
+                    "answer count does not match active question count",
+                    version,
+                    answers,
+                    questions.stream().map(InvestmentProfileQuestion::getId).toList()
+            );
             throw new CustomException(ErrorCode.INVALID_INVESTMENT_PROFILE_SUBMISSION);
         }
 
         Set<Long> submittedQuestionIds = new HashSet<>();
         for (InvestmentProfileAnswerRequest answer : answers) {
             if (!submittedQuestionIds.add(answer.questionId())) {
+                logInvalidSubmission(
+                        "duplicate question submitted",
+                        version,
+                        answers,
+                        questions.stream().map(InvestmentProfileQuestion::getId).toList()
+                );
                 throw new CustomException(ErrorCode.INVALID_INVESTMENT_PROFILE_SUBMISSION);
             }
         }
@@ -196,6 +217,7 @@ public class InvestmentProfileService {
         }
 
         if (!validQuestionIds.equals(submittedQuestionIds)) {
+            logInvalidSubmission("submitted questions do not match active questions", version, answers, validQuestionIds);
             throw new CustomException(ErrorCode.INVALID_INVESTMENT_PROFILE_SUBMISSION);
         }
     }
@@ -241,14 +263,56 @@ public class InvestmentProfileService {
         }
     }
 
-    private InvestmentProfileType determineProfileType(int totalScore) {
-        if (totalScore >= 15) {
+    private double weightedScore(InvestmentProfileQuestion question, Integer score) {
+        int questionOrder = question.getQuestionOrder();
+        if (questionOrder <= 2) {
+            return score * 0.8;
+        }
+        if (questionOrder <= 5) {
+            return score * 1.5;
+        }
+        if (questionOrder <= 8) {
+            return score * 1.2;
+        }
+
+        log.warn("Unsupported investment profile question order for scoring: questionId={}, questionOrder={}",
+                question.getId(), questionOrder);
+        throw new CustomException(ErrorCode.INVALID_INVESTMENT_PROFILE_SUBMISSION);
+    }
+
+    private InvestmentProfileType determineProfileType(double totalScore) {
+        if (totalScore >= 21) {
             return InvestmentProfileType.AGGRESSIVE;
         }
-        if (totalScore >= 7) {
+        if (totalScore >= 10) {
             return InvestmentProfileType.NEUTRAL;
         }
         return InvestmentProfileType.STABLE;
+    }
+
+    private void logInvalidSubmission(
+            String reason,
+            Integer version,
+            List<InvestmentProfileAnswerRequest> answers,
+            Collection<Long> expectedQuestionIds
+    ) {
+        log.warn(
+                "Invalid investment profile submission: reason={}, version={}, answerCount={}, answers={}, expectedQuestionIds={}",
+                reason,
+                version,
+                answers == null ? null : answers.size(),
+                summarizeAnswers(answers),
+                expectedQuestionIds
+        );
+    }
+
+    private List<String> summarizeAnswers(List<InvestmentProfileAnswerRequest> answers) {
+        if (answers == null) {
+            return List.of();
+        }
+        return answers.stream()
+                .map(answer -> "questionId=" + answer.questionId() + ", optionId=" + answer.optionId())
+                .toList();
     }
 
     private InvestmentProfileResultResponse toResponse(UserInvestmentProfileResult result) {

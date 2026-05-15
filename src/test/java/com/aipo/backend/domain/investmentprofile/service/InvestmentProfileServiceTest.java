@@ -68,13 +68,13 @@ class InvestmentProfileServiceTest {
         List<InvestmentProfileOption> options = options(questions);
         when(questionRepository.findCurrentVersion()).thenReturn(1);
         when(questionRepository.findAllByVersionAndActiveTrueOrderByQuestionOrderAsc(1)).thenReturn(questions);
-        when(optionRepository.findAllByQuestion_IdInOrderByQuestion_QuestionOrderAscOptionOrderAsc(List.of(1L, 2L, 3L, 4L, 5L, 6L)))
+        when(optionRepository.findAllByQuestion_IdInOrderByQuestion_QuestionOrderAscOptionOrderAsc(List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L)))
                 .thenReturn(options);
 
         InvestmentProfileQuestionsResponse response = investmentProfileService.getQuestions();
 
         assertThat(response.version()).isEqualTo(1);
-        assertThat(response.questions()).hasSize(6);
+        assertThat(response.questions()).hasSize(8);
         assertThat(response.questions().get(0).options()).hasSize(4);
     }
 
@@ -100,19 +100,21 @@ class InvestmentProfileServiceTest {
                         new InvestmentProfileAnswerRequest(3L, 304L),
                         new InvestmentProfileAnswerRequest(4L, 403L),
                         new InvestmentProfileAnswerRequest(5L, 503L),
-                        new InvestmentProfileAnswerRequest(6L, 603L)
+                        new InvestmentProfileAnswerRequest(6L, 603L),
+                        new InvestmentProfileAnswerRequest(7L, 704L),
+                        new InvestmentProfileAnswerRequest(8L, 804L)
                 ))
         );
 
         assertThat(response.testStatus()).isEqualTo(InvestmentProfileTestStatus.COMPLETED);
         assertThat(response.profileType()).isEqualTo(InvestmentProfileType.AGGRESSIVE);
-        assertThat(response.totalScore()).isEqualTo(15);
+        assertThat(response.totalScore()).isEqualTo(25);
         assertThat(response.profileLabel()).isEqualTo("공격형");
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<UserInvestmentProfileAnswer>> answerCaptor = ArgumentCaptor.forClass(List.class);
         verify(answerRepository).saveAll(answerCaptor.capture());
-        assertThat(answerCaptor.getValue()).hasSize(6);
+        assertThat(answerCaptor.getValue()).hasSize(8);
     }
 
     @Test
@@ -130,7 +132,9 @@ class InvestmentProfileServiceTest {
                         new InvestmentProfileAnswerRequest(3L, 301L),
                         new InvestmentProfileAnswerRequest(4L, 401L),
                         new InvestmentProfileAnswerRequest(5L, 501L),
-                        new InvestmentProfileAnswerRequest(6L, 601L)
+                        new InvestmentProfileAnswerRequest(6L, 601L),
+                        new InvestmentProfileAnswerRequest(7L, 701L),
+                        new InvestmentProfileAnswerRequest(8L, 801L)
                 ))
         ))
                 .isInstanceOf(CustomException.class)
@@ -216,19 +220,21 @@ class InvestmentProfileServiceTest {
                         new InvestmentProfileAnswerRequest(3L, 302L),
                         new InvestmentProfileAnswerRequest(4L, 402L),
                         new InvestmentProfileAnswerRequest(5L, 502L),
-                        new InvestmentProfileAnswerRequest(6L, 602L)
+                        new InvestmentProfileAnswerRequest(6L, 602L),
+                        new InvestmentProfileAnswerRequest(7L, 702L),
+                        new InvestmentProfileAnswerRequest(8L, 802L)
                 ))
         );
 
         assertThat(response.testStatus()).isEqualTo(InvestmentProfileTestStatus.COMPLETED);
         assertThat(response.profileType()).isEqualTo(InvestmentProfileType.STABLE);
-        assertThat(response.totalScore()).isEqualTo(5);
+        assertThat(response.totalScore()).isEqualTo(9);
         assertThat(response.profileLabel()).isEqualTo("안정형");
     }
 
     private List<InvestmentProfileQuestion> questions() {
         List<InvestmentProfileQuestion> questions = new ArrayList<>();
-        for (long index = 1; index <= 6; index++) {
+        for (long index = 1; index <= 8; index++) {
             InvestmentProfileQuestion question = instantiate(InvestmentProfileQuestion.class);
             ReflectionTestUtils.setField(question, "id", index);
             ReflectionTestUtils.setField(question, "version", 1);

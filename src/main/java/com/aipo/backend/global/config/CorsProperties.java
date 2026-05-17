@@ -16,7 +16,7 @@ public class CorsProperties {
     }
 
     public void setAllowedOrigins(List<String> allowedOrigins) {
-        this.allowedOrigins = allowedOrigins;
+        this.allowedOrigins = allowedOrigins == null ? new ArrayList<>() : allowedOrigins;
     }
 
     public List<String> getAllowedOriginPatterns() {
@@ -24,6 +24,6 @@ public class CorsProperties {
     }
 
     public void setAllowedOriginPatterns(List<String> allowedOriginPatterns) {
-        this.allowedOriginPatterns = allowedOriginPatterns;
+        this.allowedOriginPatterns = allowedOriginPatterns == null ? new ArrayList<>() : allowedOriginPatterns;
     }
 }

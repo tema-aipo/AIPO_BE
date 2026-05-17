@@ -5,7 +5,9 @@ import com.aipo.backend.global.security.jwt.JwtAccessDeniedHandler;
 import com.aipo.backend.global.security.jwt.JwtAuthenticationEntryPoint;
 import com.aipo.backend.global.security.jwt.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,12 +26,19 @@ import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
+@Slf4j
 @EnableConfigurationProperties(CorsProperties.class)
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final ObjectMapper objectMapper;
     private final CorsProperties corsProperties;
+
+    @PostConstruct
+    void logCorsConfiguration() {
+        log.info("Configured CORS allowed origins: {}", corsProperties.getAllowedOrigins());
+        log.info("Configured CORS allowed origin patterns: {}", corsProperties.getAllowedOriginPatterns());
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -74,7 +83,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(corsProperties.getAllowedOrigins());
         configuration.setAllowedOriginPatterns(corsProperties.getAllowedOriginPatterns());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

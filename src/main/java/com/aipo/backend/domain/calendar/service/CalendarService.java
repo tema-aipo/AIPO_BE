@@ -5,11 +5,9 @@ import com.aipo.backend.domain.calendar.dto.CalendarCellScheduleItem;
 import com.aipo.backend.domain.calendar.dto.CalendarMonthResponse;
 import com.aipo.backend.domain.calendar.dto.SelectedDateCompanyItem;
 import com.aipo.backend.domain.calendar.dto.SelectedDateSection;
-import com.aipo.backend.domain.ipo.entity.IpoAttractionScore;
 import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
 import com.aipo.backend.domain.ipo.entity.IpoSchedule;
 import com.aipo.backend.domain.ipo.entity.ScheduleType;
-import com.aipo.backend.domain.ipo.repository.IpoAttractionScoreRepository;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +33,6 @@ public class CalendarService {
 
     private final IpoScheduleRepository ipoScheduleRepository;
     private final IpoLeadManagerRepository ipoLeadManagerRepository;
-    private final IpoAttractionScoreRepository ipoAttractionScoreRepository;
 
     public CalendarMonthResponse getMonthlyCalendar(int year, int month, LocalDate selectedDate) {
         YearMonth yearMonth = YearMonth.of(year, month);
@@ -116,7 +113,7 @@ public class CalendarService {
                 stockId,
                 schedule.getStock().getCompanyName(),
                 getRepresentativeSecuritiesCompanyName(stockId),
-                getLatestAttractionScore(stockId),
+                toAttractionScore(schedule.getStock().getAttractScore()),
                 schedule.getScheduleType().name(),
                 getScheduleLabel(schedule.getScheduleType())
         );
@@ -159,11 +156,8 @@ public class CalendarService {
                 .orElse(null);
     }
 
-    private BigDecimal getLatestAttractionScore(Long stockId) {
-        return ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(stockId)
-                .map(IpoAttractionScore::getTotalScore)
-                .map(BigDecimal::valueOf)
-                .orElse(null);
+    private BigDecimal toAttractionScore(Float attractScore) {
+        return attractScore == null ? null : BigDecimal.valueOf(attractScore);
     }
 
     private String getScheduleLabel(ScheduleType scheduleType) {

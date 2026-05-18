@@ -2,7 +2,6 @@ package com.aipo.backend.domain.user.service;
 
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.UserFavoriteStock;
-import com.aipo.backend.domain.ipo.repository.IpoAttractionScoreRepository;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
@@ -45,9 +44,6 @@ class FavoriteServiceTest {
     private IpoLeadManagerRepository ipoLeadManagerRepository;
 
     @Mock
-    private IpoAttractionScoreRepository ipoAttractionScoreRepository;
-
-    @Mock
     private IpoScheduleRepository ipoScheduleRepository;
 
     @InjectMocks
@@ -80,7 +76,6 @@ class FavoriteServiceTest {
         ));
 
         when(ipoLeadManagerRepository.findAllByStock_IdIn(any())).thenReturn(List.of());
-        when(ipoAttractionScoreRepository.findAllByStock_IdIn(any())).thenReturn(List.of());
         when(ipoScheduleRepository.findAllByStock_IdInAndScheduleType(any(), any())).thenReturn(List.of());
 
         List<FavoriteStockResponse> responses = favoriteService.getFavorites(userId);
@@ -99,7 +94,6 @@ class FavoriteServiceTest {
         assertThat(responses.get(1).ipoId()).isEqualTo(2L);
         verify(userFavoriteStockRepository).findAllByUserIdOrderByCreatedAtDesc(userId);
         verify(ipoLeadManagerRepository).findAllByStock_IdIn(any());
-        verify(ipoAttractionScoreRepository).findAllByStock_IdIn(any());
         verify(ipoScheduleRepository).findAllByStock_IdInAndScheduleType(any(), any());
     }
 

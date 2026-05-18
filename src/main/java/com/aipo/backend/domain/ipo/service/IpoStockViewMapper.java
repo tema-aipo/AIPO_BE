@@ -58,11 +58,11 @@ public final class IpoStockViewMapper {
     }
 
     public static Integer displayScore(IpoStock stock) {
-        if (stock.getRecentGrowthScore() != null) {
-            return stock.getRecentGrowthScore();
-        }
         if (stock.getAttractScore() != null) {
             return Math.round(stock.getAttractScore());
+        }
+        if (stock.getRecentGrowthScore() != null) {
+            return stock.getRecentGrowthScore();
         }
         return 0;
     }

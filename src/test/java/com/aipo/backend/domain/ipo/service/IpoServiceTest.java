@@ -6,7 +6,6 @@ import com.aipo.backend.domain.ipo.dto.IpoListItem;
 import com.aipo.backend.domain.ipo.dto.IpoListResponse;
 import com.aipo.backend.domain.ipo.entity.CompetitionTabType;
 import com.aipo.backend.domain.ipo.entity.IpoAttractionReason;
-import com.aipo.backend.domain.ipo.entity.IpoAttractionScore;
 import com.aipo.backend.domain.ipo.entity.IpoDemandForecast;
 import com.aipo.backend.domain.ipo.entity.IpoDepositInfo;
 import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
@@ -16,7 +15,6 @@ import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.IpoSubscriptionCompetition;
 import com.aipo.backend.domain.ipo.entity.ScheduleType;
 import com.aipo.backend.domain.ipo.repository.IpoAttractionReasonRepository;
-import com.aipo.backend.domain.ipo.repository.IpoAttractionScoreRepository;
 import com.aipo.backend.domain.ipo.repository.IpoDetailProjection;
 import com.aipo.backend.domain.ipo.repository.IpoDemandForecastRepository;
 import com.aipo.backend.domain.ipo.repository.IpoDepositInfoRepository;
@@ -58,9 +56,6 @@ class IpoServiceTest {
 
     @Mock
     private IpoLeadManagerRepository ipoLeadManagerRepository;
-
-    @Mock
-    private IpoAttractionScoreRepository ipoAttractionScoreRepository;
 
     @Mock
     private IpoAttractionReasonRepository ipoAttractionReasonRepository;
@@ -134,14 +129,13 @@ class IpoServiceTest {
                 LocalDate.of(2026, 4, 29),
                 LocalDate.of(2026, 5, 8)
         );
+        ReflectionTestUtils.setField(ipoStock, "attractScore", 88F);
 
         when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
                 leadManager(ipoStock, "주관사A", 1),
                 leadManager(ipoStock, "주관사B", 2)
         ));
-        when(ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(ipoId))
-                .thenReturn(Optional.of(attractionScore(ipoStock, 88, LocalDateTime.of(2026, 4, 21, 9, 0))));
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
                 attractionReason(ipoStock, "수요예측 강세", "기관 경쟁률이 높습니다.", 1),
                 attractionReason(ipoStock, "유통물량 부담 적음", "상장 직후 유통 가능 물량이 제한적입니다.", 2)
@@ -238,7 +232,6 @@ class IpoServiceTest {
 
         when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
-        when(ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(ipoId)).thenReturn(Optional.empty());
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
         when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
@@ -264,8 +257,8 @@ class IpoServiceTest {
     }
 
     @Test
-    @DisplayName("매력지수는 최신 1건 조회 결과를 사용한다")
-    void getIpoDetail_usesLatestAttractionScore() {
+    @DisplayName("매력지수는 ipo_main attract_score를 사용한다")
+    void getIpoDetail_usesIpoMainAttractScore() {
         Long ipoId = 4L;
         IpoStock ipoStock = ipoStock(
                 ipoId,
@@ -276,20 +269,13 @@ class IpoServiceTest {
                 LocalDate.of(2026, 7, 2),
                 LocalDate.of(2026, 7, 20)
         );
-        IpoAttractionScore latestScore = attractionScore(
-                ipoStock,
-                91,
-                LocalDateTime.of(2026, 4, 21, 10, 30)
-        );
+        ReflectionTestUtils.setField(ipoStock, "attractScore", 91F);
 
         stubDefaultDetailSources(ipoId, ipoStock);
-        when(ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(ipoId))
-                .thenReturn(Optional.of(latestScore));
 
         IpoDetailResponse response = ipoService.getIpoDetail(ipoId, null);
 
         assertThat(response.attraction().totalScore()).isEqualByComparingTo("91");
-        verify(ipoAttractionScoreRepository).findTopByStock_IdOrderByCalculatedAtDesc(ipoId);
     }
 
     @Test
@@ -327,7 +313,6 @@ class IpoServiceTest {
     private void stubDefaultDetailSources(Long ipoId, IpoStock ipoStock) {
         when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
-        when(ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(ipoId)).thenReturn(Optional.empty());
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
         when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
@@ -391,14 +376,6 @@ class IpoServiceTest {
         ReflectionTestUtils.setField(leadManager, "displayOrder", displayOrder);
         ReflectionTestUtils.setField(leadManager, "createdAt", LocalDateTime.now());
         return leadManager;
-    }
-
-    private IpoAttractionScore attractionScore(IpoStock ipoStock, int totalScore, LocalDateTime calculatedAt) {
-        IpoAttractionScore attractionScore = instantiate(IpoAttractionScore.class);
-        ReflectionTestUtils.setField(attractionScore, "stock", ipoStock);
-        ReflectionTestUtils.setField(attractionScore, "totalScore", totalScore);
-        ReflectionTestUtils.setField(attractionScore, "calculatedAt", calculatedAt);
-        return attractionScore;
     }
 
     private IpoAttractionReason attractionReason(

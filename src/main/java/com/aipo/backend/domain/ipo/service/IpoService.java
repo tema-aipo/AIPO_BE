@@ -25,7 +25,6 @@ public class IpoService {
 
     private final IpoStockRepository ipoStockRepository;
     private final IpoLeadManagerRepository ipoLeadManagerRepository;
-    private final IpoAttractionScoreRepository ipoAttractionScoreRepository;
     private final IpoAttractionReasonRepository ipoAttractionReasonRepository;
     private final IpoDemandForecastRepository ipoDemandForecastRepository;
     private final IpoSubscriptionCompetitionRepository ipoSubscriptionCompetitionRepository;
@@ -56,9 +55,6 @@ public class IpoService {
                 .orElseThrow(() -> new CustomException(ErrorCode.IPO_NOT_FOUND));
 
         List<IpoLeadManager> leadManagers = ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
-        IpoAttractionScore attractionScore = ipoAttractionScoreRepository
-                .findTopByStock_IdOrderByCalculatedAtDesc(ipoId)
-                .orElse(null);
         List<IpoAttractionReason> attractionReasons =
                 ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
         IpoDemandForecast demandForecast = ipoDemandForecastRepository.findByStock_Id(ipoId).orElse(null);
@@ -71,7 +67,7 @@ public class IpoService {
         return new IpoDetailResponse(
                 ipo.getStockId(),
                 buildSummary(ipo, leadManagers, userId),
-                buildAttraction(attractionScore, attractionReasons),
+                buildAttraction(ipo.getAttractScore(), attractionReasons),
                 buildDemandForecast(demandForecast),
                 buildSubscriptionCompetition(subscriptionCompetition),
                 buildSchedule(ipo, schedules),
@@ -101,12 +97,12 @@ public class IpoService {
     }
 
     private AttractionSection buildAttraction(
-            IpoAttractionScore attractionScore,
+            Float attractScore,
             List<IpoAttractionReason> attractionReasons
     ) {
-        BigDecimal totalScore = attractionScore == null
+        BigDecimal totalScore = attractScore == null
                 ? null
-                : BigDecimal.valueOf(attractionScore.getTotalScore());
+                : BigDecimal.valueOf(attractScore);
 
         List<AttractionReasonItem> reasons = attractionReasons == null
                 ? Collections.emptyList()

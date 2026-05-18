@@ -192,21 +192,14 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
         String keywordPattern = toKeywordPattern(keyword);
 
         var query = em.createQuery("""
-                select s, a.totalScore
+                select s
                 from IpoStock s
-                left join IpoAttractionScore a
-                    on a.stock = s
-                    and a.calculatedAt = (
-                        select max(a2.calculatedAt)
-                        from IpoAttractionScore a2
-                        where a2.stock = s
-                    )
                 where (:keyword is null
                     or lower(s.stockName) like :keyword
                     or lower(s.companyName) like :keyword
                     or lower(s.corpName) like :keyword)
                 order by %s
-                """.formatted(orderBy), Object[].class);
+                """.formatted(orderBy), IpoStock.class);
 
         query.setParameter("keyword", keywordPattern);
         return query
@@ -214,7 +207,7 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 .setMaxResults(size)
                 .getResultList()
                 .stream()
-                .map(row -> toIpoListItem((IpoStock) row[0], (Integer) row[1]))
+                .map(this::toIpoListItem)
                 .toList();
     }
 
@@ -247,7 +240,7 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
         );
     }
 
-    private IpoListItem toIpoListItem(IpoStock stock, Integer attractionScore) {
+    private IpoListItem toIpoListItem(IpoStock stock) {
         return new IpoListItem(
                 stock.getId(),
                 IpoStockViewMapper.displayStockName(stock),
@@ -258,8 +251,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 IpoStockViewMapper.subscriptionStartDate(stock),
                 IpoStockViewMapper.subscriptionEndDate(stock),
                 stock.getListingDate(),
-                BigDecimal.valueOf(attractionScore != null ? attractionScore : IpoStockViewMapper.displayScore(stock)),
-                IpoStockViewMapper.displayScore(stock),
+                BigDecimal.valueOf(IpoStockViewMapper.displayScore(stock)),
+                stock.getRecentGrowthScore(),
                 stock.getDemandForecastDate(),
                 stock.getRefundDate()
         );
@@ -302,13 +295,13 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
     }
 
     private Integer displayScore(Object recentGrowthScore, Object attractScore) {
-        Integer recentGrowth = toInteger(recentGrowthScore);
-        if (recentGrowth != null) {
-            return recentGrowth;
-        }
         Float attract = toFloat(attractScore);
         if (attract != null) {
             return Math.round(attract);
+        }
+        Integer recentGrowth = toInteger(recentGrowthScore);
+        if (recentGrowth != null) {
+            return recentGrowth;
         }
         return 0;
     }
@@ -348,7 +341,7 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
             case "subscriptionEndDate" -> "s.subscriptionEndDate";
             case "listingDate" -> "s.listingDate";
             case "confirmedOfferPrice" -> "s.confirmedOfferPrice";
-            case "attractionScore" -> "coalesce(s.recentGrowthScore, 0)";
+            case "attractionScore" -> "coalesce(s.attractScore, 0)";
             case "recentGrowthScore" -> "coalesce(s.recentGrowthScore, 0)";
             case "stockName" -> "s.stockName";
             case "companyName" -> "s.companyName";

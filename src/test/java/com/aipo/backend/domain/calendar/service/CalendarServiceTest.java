@@ -1,12 +1,10 @@
 package com.aipo.backend.domain.calendar.service;
 
 import com.aipo.backend.domain.calendar.dto.CalendarMonthResponse;
-import com.aipo.backend.domain.ipo.entity.IpoAttractionScore;
 import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
 import com.aipo.backend.domain.ipo.entity.IpoSchedule;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.ScheduleType;
-import com.aipo.backend.domain.ipo.repository.IpoAttractionScoreRepository;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -20,7 +18,6 @@ import java.lang.reflect.Constructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,20 +33,17 @@ class CalendarServiceTest {
     @Mock
     private IpoLeadManagerRepository ipoLeadManagerRepository;
 
-    @Mock
-    private IpoAttractionScoreRepository ipoAttractionScoreRepository;
-
     @Test
     @DisplayName("월 렌더링용 전체 날짜 셀과 선택 날짜 상세 목록을 조립한다")
     void getMonthlyCalendar_success() {
         CalendarService calendarService = spy(new CalendarService(
                 ipoScheduleRepository,
-                ipoLeadManagerRepository,
-                ipoAttractionScoreRepository
+                ipoLeadManagerRepository
         ));
 
         Long ipoId = 1L;
         IpoStock stock = ipoStock(ipoId, "AIPO");
+        ReflectionTestUtils.setField(stock, "attractScore", 88F);
         IpoSchedule subscriptionStart = schedule(stock, ScheduleType.SUBSCRIPTION_START, LocalDate.of(2026, 4, 28));
         IpoSchedule refund = schedule(stock, ScheduleType.REFUND, LocalDate.of(2026, 4, 30));
 
@@ -61,9 +55,6 @@ class CalendarServiceTest {
                 leadManager(stock, "주관사A", 1),
                 leadManager(stock, "주관사B", 2)
         ));
-        when(ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(ipoId))
-                .thenReturn(Optional.of(attractionScore(stock, 88, LocalDateTime.of(2026, 4, 21, 9, 0))));
-
         CalendarMonthResponse response = calendarService.getMonthlyCalendar(
                 2026,
                 4,
@@ -94,8 +85,7 @@ class CalendarServiceTest {
     void getMonthlyCalendar_whenSelectedDateMissingInCurrentMonth_defaultsToToday() {
         CalendarService calendarService = spy(new CalendarService(
                 ipoScheduleRepository,
-                ipoLeadManagerRepository,
-                ipoAttractionScoreRepository
+                ipoLeadManagerRepository
         ));
 
         IpoStock stock = ipoStock(1L, "AIPO");
@@ -118,8 +108,7 @@ class CalendarServiceTest {
     void getMonthlyCalendar_whenSelectedDateMissingOutsideCurrentMonth_defaultsToFirstScheduledDate() {
         CalendarService calendarService = spy(new CalendarService(
                 ipoScheduleRepository,
-                ipoLeadManagerRepository,
-                ipoAttractionScoreRepository
+                ipoLeadManagerRepository
         ));
 
         IpoStock firstStock = ipoStock(1L, "AIPO");
@@ -134,7 +123,6 @@ class CalendarServiceTest {
                 schedule(secondStock, ScheduleType.SUBSCRIPTION_START, LocalDate.of(2026, 5, 12))
         ));
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(1L)).thenReturn(List.of());
-        when(ipoAttractionScoreRepository.findTopByStock_IdOrderByCalculatedAtDesc(1L)).thenReturn(Optional.empty());
 
         CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 5, null);
 
@@ -148,8 +136,7 @@ class CalendarServiceTest {
     void getMonthlyCalendar_whenNoSchedules_defaultsToFirstDayOfMonth() {
         CalendarService calendarService = spy(new CalendarService(
                 ipoScheduleRepository,
-                ipoLeadManagerRepository,
-                ipoAttractionScoreRepository
+                ipoLeadManagerRepository
         ));
 
         when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
@@ -170,8 +157,7 @@ class CalendarServiceTest {
     void getMonthlyCalendar_whenSelectedDateOutOfMonth_throwIllegalArgumentException() {
         CalendarService calendarService = new CalendarService(
                 ipoScheduleRepository,
-                ipoLeadManagerRepository,
-                ipoAttractionScoreRepository
+                ipoLeadManagerRepository
         );
 
         assertThatThrownBy(() -> calendarService.getMonthlyCalendar(2026, 4, LocalDate.of(2026, 5, 1)))
@@ -205,14 +191,6 @@ class CalendarServiceTest {
         ReflectionTestUtils.setField(leadManager, "displayOrder", displayOrder);
         ReflectionTestUtils.setField(leadManager, "createdAt", LocalDateTime.now());
         return leadManager;
-    }
-
-    private IpoAttractionScore attractionScore(IpoStock stock, int totalScore, LocalDateTime calculatedAt) {
-        IpoAttractionScore attractionScore = instantiate(IpoAttractionScore.class);
-        ReflectionTestUtils.setField(attractionScore, "stock", stock);
-        ReflectionTestUtils.setField(attractionScore, "totalScore", totalScore);
-        ReflectionTestUtils.setField(attractionScore, "calculatedAt", calculatedAt);
-        return attractionScore;
     }
 
     private <T> T instantiate(Class<T> type) {

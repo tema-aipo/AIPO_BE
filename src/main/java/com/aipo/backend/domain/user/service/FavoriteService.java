@@ -23,7 +23,6 @@ public class FavoriteService {
     private final IpoStockRepository ipoStockRepository;
     private final UserFavoriteStockRepository userFavoriteStockRepository;
     private final IpoLeadManagerRepository ipoLeadManagerRepository;
-    private final IpoAttractionScoreRepository ipoAttractionScoreRepository;
     private final IpoScheduleRepository ipoScheduleRepository; // 추가
 
     public List<FavoriteStockResponse> getFavorites(Long userId) {
@@ -41,12 +40,7 @@ public class FavoriteService {
         Map<Long, List<IpoLeadManager>> managersByStockId = managers.stream()
                 .collect(Collectors.groupingBy(m -> m.getStock().getId()));
 
-        // 2. Batch load attraction scores
-        List<IpoAttractionScore> scores = ipoAttractionScoreRepository.findAllByStock_IdIn(stockIds);
-        Map<Long, List<IpoAttractionScore>> scoresByStockId = scores.stream()
-                .collect(Collectors.groupingBy(s -> s.getStock().getId()));
-
-        // 3. Batch load refund schedules
+        // 2. Batch load refund schedules
         List<IpoSchedule> refundSchedules = ipoScheduleRepository
                 .findAllByStock_IdInAndScheduleType(stockIds, ScheduleType.REFUND);
         Map<Long, java.time.LocalDate> refundDateByStockId = refundSchedules.stream()
@@ -57,25 +51,20 @@ public class FavoriteService {
                 ));
 
         return favorites.stream()
-                .map(favoriteStock -> toResponse(favoriteStock, managersByStockId, scoresByStockId, refundDateByStockId))
+                .map(favoriteStock -> toResponse(favoriteStock, managersByStockId, refundDateByStockId))
                 .toList();
     }
 
     private FavoriteStockResponse toResponse(
             UserFavoriteStock favoriteStock,
             Map<Long, List<IpoLeadManager>> managersByStockId,
-            Map<Long, List<IpoAttractionScore>> scoresByStockId,
             Map<Long, java.time.LocalDate> refundDateByStockId
     ) {
         IpoStock stock = favoriteStock.getStock();
         Long stockId = stock.getId();
 
         // 1. Attraction Score
-        List<IpoAttractionScore> stockScores = scoresByStockId.getOrDefault(stockId, Collections.emptyList());
-        Integer score = stockScores.isEmpty() ? null : stockScores.get(0).getTotalScore();
-        if (score == null) {
-            score = stock.getRecentGrowthScore(); // fallback
-        }
+        Integer score = stock.getAttractScore() == null ? null : Math.round(stock.getAttractScore());
 
         // 2. Lead Manager
         List<IpoLeadManager> stockManagers = managersByStockId.getOrDefault(stockId, Collections.emptyList());

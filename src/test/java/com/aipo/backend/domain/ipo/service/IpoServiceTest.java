@@ -257,6 +257,35 @@ class IpoServiceTest {
     }
 
     @Test
+    @DisplayName("주관사 테이블 데이터가 없으면 ipo_main underwriter를 주관사로 사용한다")
+    void getIpoDetail_whenLeadManagerMissing_usesIpoMainUnderwriter() {
+        Long ipoId = 7L;
+        IpoStock ipoStock = ipoStock(
+                ipoId,
+                "언더라이터 기업",
+                "설명",
+                new BigDecimal("16000.00"),
+                LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 10, 2),
+                LocalDate.of(2026, 10, 20)
+        );
+
+        when(ipoStockRepository.findDetailByStockId(ipoId))
+                .thenReturn(Optional.of(ipoDetailProjection(ipoStock, "한국투자증권, NH투자증권")));
+        when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
+        when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
+        when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
+        when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
+        when(ipoScheduleRepository.findAllByStock_Id(ipoId)).thenReturn(Collections.emptyList());
+        when(ipoDepositInfoRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
+        when(ipoOfferingInfoRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
+
+        IpoDetailResponse response = ipoService.getIpoDetail(ipoId, null);
+
+        assertThat(response.summary().leadManagers()).containsExactly("한국투자증권", "NH투자증권");
+    }
+
+    @Test
     @DisplayName("일정 테이블 데이터가 없으면 ipo_main 텍스트 일정에서 상세 일정을 보완한다")
     void getIpoDetail_whenScheduleMissing_usesIpoMainTextDates() {
         Long ipoId = 6L;
@@ -370,6 +399,10 @@ class IpoServiceTest {
     }
 
     private IpoDetailProjection ipoDetailProjection(IpoStock ipoStock) {
+        return ipoDetailProjection(ipoStock, null);
+    }
+
+    private IpoDetailProjection ipoDetailProjection(IpoStock ipoStock, String underwriter) {
         return new TestIpoDetailProjection(
                 ipoStock.getId(),
                 ipoStock.getCompanyName(),
@@ -382,6 +415,7 @@ class IpoServiceTest {
                 ipoStock.getRecentGrowthScore(),
                 ipoStock.getMarketType(),
                 ipoStock.getOneLineDescription(),
+                underwriter,
                 ipoStock.getSubscriptionDate(),
                 ipoStock.getDemandForecastDate(),
                 ipoStock.getRefundDate(),
@@ -508,6 +542,7 @@ class IpoServiceTest {
             Integer recentGrowthScore,
             String marketType,
             String oneLineDescription,
+            String underwriter,
             String subscriptionDate,
             String demandForecastDate,
             String refundDate,
@@ -569,6 +604,11 @@ class IpoServiceTest {
         @Override
         public String getOneLineDescription() {
             return oneLineDescription;
+        }
+
+        @Override
+        public String getUnderwriter() {
+            return underwriter;
         }
 
         @Override

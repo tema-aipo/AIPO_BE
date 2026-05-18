@@ -27,6 +27,7 @@ public interface IpoStockRepository extends JpaRepository<IpoStock, Long>, IpoSt
                 m.recent_growth_score as recentGrowthScore,
                 m.market_type as marketType,
                 m.one_line_description as oneLineDescription,
+                m.underwriter as underwriter,
                 m.subscription_date as subscriptionDate,
                 m.demand_forecast_date as demandForecastDate,
                 m.refund_date as refundDate,

@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -84,9 +85,7 @@ public class IpoService {
                 IpoStockViewMapper.displayCompanyName(ipo.getCompanyName(), ipo.getStockName(), ipo.getCorpName()),
                 ipo.getOneLineDescription(),
                 IpoStockViewMapper.offerPrice(ipo.getConfirmedOfferPrice(), ipo.getOfferingPrice()),
-                leadManagers.stream()
-                        .map(IpoLeadManager::getManagerName)
-                        .toList(),
+                leadManagerNames(ipo, leadManagers),
                 new DateRange(
                         subscriptionStartDate(ipo),
                         subscriptionEndDate(ipo)
@@ -94,6 +93,21 @@ public class IpoService {
                 isFavorite,
                 ipo.getMarketType()
         );
+    }
+
+    private List<String> leadManagerNames(IpoDetailProjection ipo, List<IpoLeadManager> leadManagers) {
+        if (leadManagers != null && !leadManagers.isEmpty()) {
+            return leadManagers.stream()
+                    .map(IpoLeadManager::getManagerName)
+                    .toList();
+        }
+        if (ipo.getUnderwriter() == null || ipo.getUnderwriter().isBlank()) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(ipo.getUnderwriter().split(","))
+                .map(String::trim)
+                .filter(name -> !name.isEmpty())
+                .toList();
     }
 
     private AttractionSection buildAttraction(

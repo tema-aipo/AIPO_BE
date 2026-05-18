@@ -26,6 +26,8 @@ public interface IpoDetailProjection {
 
     String getOneLineDescription();
 
+    String getUnderwriter();
+
     String getSubscriptionDate();
 
     String getDemandForecastDate();

@@ -180,6 +180,7 @@ class IpoServiceTest {
         assertThat(response.depositInfos()).hasSize(2);
         assertThat(response.depositInfos().get(0).securitiesCompanyName()).isEqualTo("증권사A");
         assertThat(response.offeringInfo().marketCap()).isEqualByComparingTo("250000000000.00");
+        verify(ipoStockRepository).incrementRecentGrowthScore(ipoId);
     }
 
     @Test
@@ -193,6 +194,7 @@ class IpoServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting(exception -> ((CustomException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.IPO_NOT_FOUND);
+        verify(ipoStockRepository, never()).incrementRecentGrowthScore(ipoId);
     }
 
     @Test

@@ -51,9 +51,11 @@ public class IpoService {
         return IpoListResponse.of(items, normalizedPage, normalizedSize, totalElements);
     }
 
+    @Transactional
     public IpoDetailResponse getIpoDetail(Long ipoId, Long userId) {
         IpoDetailProjection ipo = ipoStockRepository.findDetailByStockId(ipoId)
                 .orElseThrow(() -> new CustomException(ErrorCode.IPO_NOT_FOUND));
+        ipoStockRepository.incrementRecentGrowthScore(ipoId);
 
         List<IpoLeadManager> leadManagers = ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
         List<IpoAttractionReason> attractionReasons =

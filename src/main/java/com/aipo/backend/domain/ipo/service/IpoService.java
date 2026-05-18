@@ -29,7 +29,6 @@ public class IpoService {
     private final IpoAttractionReasonRepository ipoAttractionReasonRepository;
     private final IpoDemandForecastRepository ipoDemandForecastRepository;
     private final IpoSubscriptionCompetitionRepository ipoSubscriptionCompetitionRepository;
-    private final IpoScheduleRepository ipoScheduleRepository;
     private final IpoDepositInfoRepository ipoDepositInfoRepository;
     private final IpoOfferingInfoRepository ipoOfferingInfoRepository;
     private final UserFavoriteStockRepository userFavoriteStockRepository;
@@ -63,7 +62,6 @@ public class IpoService {
         IpoDemandForecast demandForecast = ipoDemandForecastRepository.findByStock_Id(ipoId).orElse(null);
         IpoSubscriptionCompetition subscriptionCompetition =
                 ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId).orElse(null);
-        List<IpoSchedule> schedules = ipoScheduleRepository.findAllByStock_Id(ipoId);
         List<IpoDepositInfo> depositInfos = ipoDepositInfoRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
         IpoOfferingInfo offeringInfo = ipoOfferingInfoRepository.findByStock_Id(ipoId).orElse(null);
 
@@ -73,7 +71,7 @@ public class IpoService {
                 buildAttraction(ipo.getAttractScore(), attractionReasons),
                 buildDemandForecast(demandForecast),
                 buildSubscriptionCompetition(subscriptionCompetition),
-                buildSchedule(ipo, schedules),
+                buildSchedule(ipo),
                 buildDepositInfos(depositInfos),
                 buildOfferingInfo(offeringInfo)
         );
@@ -173,21 +171,11 @@ public class IpoService {
         );
     }
 
-    private ScheduleSection buildSchedule(IpoDetailProjection ipo, List<IpoSchedule> schedules) {
-        LocalDate demandForecastStartDate = findScheduleDate(schedules, ScheduleType.DEMAND_FORECAST_START);
-        LocalDate demandForecastEndDate = findScheduleDate(schedules, ScheduleType.DEMAND_FORECAST_END);
-        LocalDate refundDate = findScheduleDate(schedules, ScheduleType.REFUND);
-        LocalDate listingDate = findScheduleDate(schedules, ScheduleType.LISTING);
-
-        if (demandForecastStartDate == null) {
-            demandForecastStartDate = IpoStockViewMapper.parseDateText(ipo.getDemandForecastDate(), 0);
-        }
-        if (demandForecastEndDate == null) {
-            demandForecastEndDate = IpoStockViewMapper.parseDateText(ipo.getDemandForecastDate(), 1);
-        }
-        if (refundDate == null) {
-            refundDate = IpoStockViewMapper.parseDateText(ipo.getRefundDate(), 0);
-        }
+    private ScheduleSection buildSchedule(IpoDetailProjection ipo) {
+        LocalDate demandForecastStartDate = IpoStockViewMapper.parseDateText(ipo.getDemandForecastDate(), 0);
+        LocalDate demandForecastEndDate = IpoStockViewMapper.parseDateText(ipo.getDemandForecastDate(), 1);
+        LocalDate refundDate = IpoStockViewMapper.parseDateText(ipo.getRefundDate(), 0);
+        LocalDate listingDate = IpoStockViewMapper.parseIsoDate(ipo.getListingDate());
 
         return new ScheduleSection(
                 new DateRange(demandForecastStartDate, demandForecastEndDate),
@@ -196,7 +184,7 @@ public class IpoService {
                         subscriptionEndDate(ipo)
                 ),
                 refundDate,
-                listingDate != null ? listingDate : IpoStockViewMapper.parseIsoDate(ipo.getListingDate()),
+                listingDate,
                 ipo.getDemandForecastDate(),
                 ipo.getRefundDate()
         );
@@ -243,18 +231,6 @@ public class IpoService {
                 offeringInfo.getCirculatingRatio(),
                 offeringInfo.getOldShareSaleRatio()
         );
-    }
-
-    private LocalDate findScheduleDate(List<IpoSchedule> schedules, ScheduleType scheduleType) {
-        if (schedules == null || schedules.isEmpty()) {
-            return null;
-        }
-
-        return schedules.stream()
-                .filter(schedule -> schedule.getScheduleType() == scheduleType)
-                .map(IpoSchedule::getScheduleDate)
-                .findFirst()
-                .orElse(null);
     }
 
     private CompetitionTab mapCompetitionTab(CompetitionTabType competitionTabType) {

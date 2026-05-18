@@ -2,11 +2,9 @@ package com.aipo.backend.domain.calendar.service;
 
 import com.aipo.backend.domain.calendar.dto.CalendarMonthResponse;
 import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
-import com.aipo.backend.domain.ipo.entity.IpoSchedule;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
-import com.aipo.backend.domain.ipo.entity.ScheduleType;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
-import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
+import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,7 +26,7 @@ import static org.mockito.Mockito.when;
 class CalendarServiceTest {
 
     @Mock
-    private IpoScheduleRepository ipoScheduleRepository;
+    private IpoStockRepository ipoStockRepository;
 
     @Mock
     private IpoLeadManagerRepository ipoLeadManagerRepository;
@@ -37,20 +35,17 @@ class CalendarServiceTest {
     @DisplayName("월 렌더링용 전체 날짜 셀과 선택 날짜 상세 목록을 조립한다")
     void getMonthlyCalendar_success() {
         CalendarService calendarService = spy(new CalendarService(
-                ipoScheduleRepository,
+                ipoStockRepository,
                 ipoLeadManagerRepository
         ));
 
         Long ipoId = 1L;
         IpoStock stock = ipoStock(ipoId, "AIPO");
         ReflectionTestUtils.setField(stock, "attractScore", 88F);
-        IpoSchedule subscriptionStart = schedule(stock, ScheduleType.SUBSCRIPTION_START, LocalDate.of(2026, 4, 28));
-        IpoSchedule refund = schedule(stock, ScheduleType.REFUND, LocalDate.of(2026, 4, 30));
+        ReflectionTestUtils.setField(stock, "subscriptionDate", "2026.04.28 ~ 04.29");
+        ReflectionTestUtils.setField(stock, "refundDate", "2026.04.30");
 
-        when(ipoScheduleRepository.findAllByScheduleDateBetweenOrderByScheduleDateAsc(
-                LocalDate.of(2026, 4, 1),
-                LocalDate.of(2026, 4, 30)
-        )).thenReturn(List.of(subscriptionStart, refund));
+        when(ipoStockRepository.findAll()).thenReturn(List.of(stock));
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
                 leadManager(stock, "주관사A", 1),
                 leadManager(stock, "주관사B", 2)
@@ -84,18 +79,15 @@ class CalendarServiceTest {
     @DisplayName("selectedDate가 없고 조회 월이 현재 월이면 오늘 날짜를 기본 선택한다")
     void getMonthlyCalendar_whenSelectedDateMissingInCurrentMonth_defaultsToToday() {
         CalendarService calendarService = spy(new CalendarService(
-                ipoScheduleRepository,
+                ipoStockRepository,
                 ipoLeadManagerRepository
         ));
 
         IpoStock stock = ipoStock(1L, "AIPO");
-        IpoSchedule schedule = schedule(stock, ScheduleType.LISTING, LocalDate.of(2026, 4, 30));
+        ReflectionTestUtils.setField(stock, "listingDate", LocalDate.of(2026, 4, 30));
 
         when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
-        when(ipoScheduleRepository.findAllByScheduleDateBetweenOrderByScheduleDateAsc(
-                LocalDate.of(2026, 4, 1),
-                LocalDate.of(2026, 4, 30)
-        )).thenReturn(List.of(schedule));
+        when(ipoStockRepository.findAll()).thenReturn(List.of(stock));
 
         CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 4, null);
 
@@ -107,21 +99,17 @@ class CalendarServiceTest {
     @DisplayName("selectedDate가 없고 현재 월이 아니면 첫 일정 날짜를 기본 선택한다")
     void getMonthlyCalendar_whenSelectedDateMissingOutsideCurrentMonth_defaultsToFirstScheduledDate() {
         CalendarService calendarService = spy(new CalendarService(
-                ipoScheduleRepository,
+                ipoStockRepository,
                 ipoLeadManagerRepository
         ));
 
         IpoStock firstStock = ipoStock(1L, "AIPO");
         IpoStock secondStock = ipoStock(2L, "BIPO");
+        ReflectionTestUtils.setField(firstStock, "demandForecastDate", "2026.05.10 ~ 05.11");
+        ReflectionTestUtils.setField(secondStock, "subscriptionDate", "2026.05.12 ~ 05.13");
 
         when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
-        when(ipoScheduleRepository.findAllByScheduleDateBetweenOrderByScheduleDateAsc(
-                LocalDate.of(2026, 5, 1),
-                LocalDate.of(2026, 5, 31)
-        )).thenReturn(List.of(
-                schedule(firstStock, ScheduleType.DEMAND_FORECAST_START, LocalDate.of(2026, 5, 10)),
-                schedule(secondStock, ScheduleType.SUBSCRIPTION_START, LocalDate.of(2026, 5, 12))
-        ));
+        when(ipoStockRepository.findAll()).thenReturn(List.of(firstStock, secondStock));
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(1L)).thenReturn(List.of());
 
         CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 5, null);
@@ -135,15 +123,12 @@ class CalendarServiceTest {
     @DisplayName("일정이 없는 달은 해당 월 1일을 기본 선택한다")
     void getMonthlyCalendar_whenNoSchedules_defaultsToFirstDayOfMonth() {
         CalendarService calendarService = spy(new CalendarService(
-                ipoScheduleRepository,
+                ipoStockRepository,
                 ipoLeadManagerRepository
         ));
 
         when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
-        when(ipoScheduleRepository.findAllByScheduleDateBetweenOrderByScheduleDateAsc(
-                LocalDate.of(2026, 6, 1),
-                LocalDate.of(2026, 6, 30)
-        )).thenReturn(List.of());
+        when(ipoStockRepository.findAll()).thenReturn(List.of());
 
         CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 6, null);
 
@@ -156,7 +141,7 @@ class CalendarServiceTest {
     @DisplayName("selectedDate가 조회 월 밖이면 예외가 발생한다")
     void getMonthlyCalendar_whenSelectedDateOutOfMonth_throwIllegalArgumentException() {
         CalendarService calendarService = new CalendarService(
-                ipoScheduleRepository,
+                ipoStockRepository,
                 ipoLeadManagerRepository
         );
 
@@ -172,16 +157,6 @@ class CalendarServiceTest {
         ReflectionTestUtils.setField(ipoStock, "createdAt", LocalDateTime.now());
         ReflectionTestUtils.setField(ipoStock, "updatedAt", LocalDateTime.now());
         return ipoStock;
-    }
-
-    private IpoSchedule schedule(IpoStock stock, ScheduleType scheduleType, LocalDate scheduleDate) {
-        IpoSchedule schedule = instantiate(IpoSchedule.class);
-        ReflectionTestUtils.setField(schedule, "stock", stock);
-        ReflectionTestUtils.setField(schedule, "scheduleType", scheduleType);
-        ReflectionTestUtils.setField(schedule, "scheduleDate", scheduleDate);
-        ReflectionTestUtils.setField(schedule, "createdAt", LocalDateTime.now());
-        ReflectionTestUtils.setField(schedule, "updatedAt", LocalDateTime.now());
-        return schedule;
     }
 
     private IpoLeadManager leadManager(IpoStock stock, String managerName, int displayOrder) {

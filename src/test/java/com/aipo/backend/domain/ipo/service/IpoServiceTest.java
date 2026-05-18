@@ -13,14 +13,12 @@ import com.aipo.backend.domain.ipo.entity.IpoOfferingInfo;
 import com.aipo.backend.domain.ipo.entity.IpoSchedule;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.IpoSubscriptionCompetition;
-import com.aipo.backend.domain.ipo.entity.ScheduleType;
 import com.aipo.backend.domain.ipo.repository.IpoAttractionReasonRepository;
 import com.aipo.backend.domain.ipo.repository.IpoDetailProjection;
 import com.aipo.backend.domain.ipo.repository.IpoDemandForecastRepository;
 import com.aipo.backend.domain.ipo.repository.IpoDepositInfoRepository;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoOfferingInfoRepository;
-import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.repository.IpoSubscriptionCompetitionRepository;
 import com.aipo.backend.domain.ipo.repository.UserFavoriteStockRepository;
@@ -65,9 +63,6 @@ class IpoServiceTest {
 
     @Mock
     private IpoSubscriptionCompetitionRepository ipoSubscriptionCompetitionRepository;
-
-    @Mock
-    private IpoScheduleRepository ipoScheduleRepository;
 
     @Mock
     private IpoDepositInfoRepository ipoDepositInfoRepository;
@@ -130,6 +125,8 @@ class IpoServiceTest {
                 LocalDate.of(2026, 5, 8)
         );
         ReflectionTestUtils.setField(ipoStock, "attractScore", 88F);
+        ReflectionTestUtils.setField(ipoStock, "demandForecastDate", "2026.04.20 ~ 04.21");
+        ReflectionTestUtils.setField(ipoStock, "refundDate", "2026.05.02");
 
         when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
@@ -144,12 +141,6 @@ class IpoServiceTest {
                 .thenReturn(Optional.of(demandForecast(ipoStock)));
         when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId))
                 .thenReturn(Optional.of(subscriptionCompetition(ipoStock)));
-        when(ipoScheduleRepository.findAllByStock_Id(ipoId)).thenReturn(List.of(
-                schedule(ipoStock, ScheduleType.DEMAND_FORECAST_START, LocalDate.of(2026, 4, 20)),
-                schedule(ipoStock, ScheduleType.DEMAND_FORECAST_END, LocalDate.of(2026, 4, 21)),
-                schedule(ipoStock, ScheduleType.REFUND, LocalDate.of(2026, 5, 2)),
-                schedule(ipoStock, ScheduleType.LISTING, LocalDate.of(2026, 5, 9))
-        ));
         when(ipoDepositInfoRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
                 depositInfo(ipoStock, "증권사A", new BigDecimal("75000.00"), 1),
                 depositInfo(ipoStock, "증권사B", new BigDecimal("80000.00"), 2)
@@ -176,7 +167,7 @@ class IpoServiceTest {
         assertThat(response.schedule().demandForecastPeriod().startDate()).isEqualTo(LocalDate.of(2026, 4, 20));
         assertThat(response.schedule().demandForecastPeriod().endDate()).isEqualTo(LocalDate.of(2026, 4, 21));
         assertThat(response.schedule().refundDate()).isEqualTo(LocalDate.of(2026, 5, 2));
-        assertThat(response.schedule().listingDate()).isEqualTo(LocalDate.of(2026, 5, 9));
+        assertThat(response.schedule().listingDate()).isEqualTo(LocalDate.of(2026, 5, 8));
         assertThat(response.depositInfos()).hasSize(2);
         assertThat(response.depositInfos().get(0).securitiesCompanyName()).isEqualTo("증권사A");
         assertThat(response.offeringInfo().marketCap()).isEqualByComparingTo("250000000000.00");
@@ -237,7 +228,6 @@ class IpoServiceTest {
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
         when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
-        when(ipoScheduleRepository.findAllByStock_Id(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDepositInfoRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoOfferingInfoRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
 
@@ -278,7 +268,6 @@ class IpoServiceTest {
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
         when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
-        when(ipoScheduleRepository.findAllByStock_Id(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDepositInfoRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoOfferingInfoRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
 
@@ -336,7 +325,7 @@ class IpoServiceTest {
     }
 
     @Test
-    @DisplayName("일정 리스트를 ScheduleSection 으로 재구성한다")
+    @DisplayName("ipo_main 날짜 텍스트를 ScheduleSection 으로 재구성한다")
     void getIpoDetail_rebuildsScheduleSectionFromScheduleList() {
         Long ipoId = 5L;
         IpoStock ipoStock = ipoStock(
@@ -348,14 +337,10 @@ class IpoServiceTest {
                 LocalDate.of(2026, 8, 5),
                 LocalDate.of(2026, 8, 20)
         );
+        ReflectionTestUtils.setField(ipoStock, "demandForecastDate", "2026.07.30 ~ 07.31");
+        ReflectionTestUtils.setField(ipoStock, "refundDate", "2026.08.08");
 
         stubDefaultDetailSources(ipoId, ipoStock);
-        when(ipoScheduleRepository.findAllByStock_Id(ipoId)).thenReturn(List.of(
-                schedule(ipoStock, ScheduleType.REFUND, LocalDate.of(2026, 8, 8)),
-                schedule(ipoStock, ScheduleType.DEMAND_FORECAST_END, LocalDate.of(2026, 7, 31)),
-                schedule(ipoStock, ScheduleType.DEMAND_FORECAST_START, LocalDate.of(2026, 7, 30)),
-                schedule(ipoStock, ScheduleType.LISTING, LocalDate.of(2026, 8, 21))
-        ));
 
         IpoDetailResponse response = ipoService.getIpoDetail(ipoId, null);
 
@@ -364,7 +349,7 @@ class IpoServiceTest {
         assertThat(response.schedule().subscriptionPeriod().startDate()).isEqualTo(LocalDate.of(2026, 8, 4));
         assertThat(response.schedule().subscriptionPeriod().endDate()).isEqualTo(LocalDate.of(2026, 8, 5));
         assertThat(response.schedule().refundDate()).isEqualTo(LocalDate.of(2026, 8, 8));
-        assertThat(response.schedule().listingDate()).isEqualTo(LocalDate.of(2026, 8, 21));
+        assertThat(response.schedule().listingDate()).isEqualTo(LocalDate.of(2026, 8, 20));
     }
 
     private void stubDefaultDetailSources(Long ipoId, IpoStock ipoStock) {
@@ -373,7 +358,6 @@ class IpoServiceTest {
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
         when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
-        when(ipoScheduleRepository.findAllByStock_Id(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDepositInfoRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoOfferingInfoRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
     }
@@ -482,16 +466,6 @@ class IpoServiceTest {
         ReflectionTestUtils.setField(subscriptionCompetition, "createdAt", LocalDateTime.now());
         ReflectionTestUtils.setField(subscriptionCompetition, "updatedAt", LocalDateTime.now());
         return subscriptionCompetition;
-    }
-
-    private IpoSchedule schedule(IpoStock ipoStock, ScheduleType scheduleType, LocalDate scheduleDate) {
-        IpoSchedule schedule = instantiate(IpoSchedule.class);
-        ReflectionTestUtils.setField(schedule, "stock", ipoStock);
-        ReflectionTestUtils.setField(schedule, "scheduleType", scheduleType);
-        ReflectionTestUtils.setField(schedule, "scheduleDate", scheduleDate);
-        ReflectionTestUtils.setField(schedule, "createdAt", LocalDateTime.now());
-        ReflectionTestUtils.setField(schedule, "updatedAt", LocalDateTime.now());
-        return schedule;
     }
 
     private IpoDepositInfo depositInfo(

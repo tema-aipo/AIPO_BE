@@ -195,9 +195,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 select s
                 from IpoStock s
                 where (:keyword is null
-                    or lower(s.stockName) like :keyword
-                    or lower(s.companyName) like :keyword
-                    or lower(s.corpName) like :keyword)
+                    or lower(s.corpName) like :keyword
+                    or lower(s.stockCode) like :keyword)
                 order by %s
                 """.formatted(orderBy), IpoStock.class);
 
@@ -219,9 +218,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 select count(s.id)
                 from IpoStock s
                 where (:keyword is null
-                    or lower(s.stockName) like :keyword
-                    or lower(s.companyName) like :keyword
-                    or lower(s.corpName) like :keyword)
+                    or lower(s.corpName) like :keyword
+                    or lower(s.stockCode) like :keyword)
                 """, Long.class)
                 .setParameter("keyword", keywordPattern)
                 .getSingleResult();

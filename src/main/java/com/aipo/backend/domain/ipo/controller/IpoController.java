@@ -39,7 +39,7 @@ public class IpoController {
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기. 최대 50으로 제한", example = "20")
             @RequestParam(defaultValue = "20") int size,
-            @Parameter(description = "종목명 또는 기업명 검색어", example = "에이")
+            @Parameter(description = "법인명(corp_name) 또는 종목코드(stock_code) 검색어", example = "005930")
             @RequestParam(required = false) String keyword,
             @Parameter(description = "정렬 필드. subscriptionStartDate, subscriptionEndDate, listingDate, confirmedOfferPrice, attractionScore, recentGrowthScore, stockName, companyName 지원", example = "subscriptionStartDate")
             @RequestParam(defaultValue = "subscriptionStartDate") String sort,

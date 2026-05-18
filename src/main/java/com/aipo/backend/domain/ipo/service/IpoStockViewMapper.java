@@ -4,15 +4,13 @@ import com.aipo.backend.domain.ipo.entity.IpoStock;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class IpoStockViewMapper {
 
-    private static final Pattern DATE_PATTERN = Pattern.compile("(\\d{4})\\.(\\d{1,2})\\.(\\d{1,2})|(?<!\\d)(\\d{1,2})\\.(\\d{1,2})(?!\\d)");
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy.M.d");
+    private static final Pattern DATE_PATTERN = Pattern.compile("(\\d{4})[.\\-/](\\d{1,2})[.\\-/](\\d{1,2})|(?<!\\d)(\\d{1,2})[.\\-/](\\d{1,2})(?!\\d)");
 
     private IpoStockViewMapper() {
     }
@@ -93,19 +91,10 @@ public final class IpoStockViewMapper {
     }
 
     public static LocalDate parseSubscriptionDateText(String value, int index) {
-        return parseSubscriptionDate(value, index);
+        return parseDateText(value, index);
     }
 
-    private static String firstText(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value.trim();
-            }
-        }
-        return "";
-    }
-
-    private static LocalDate parseSubscriptionDate(String value, int index) {
+    public static LocalDate parseDateText(String value, int index) {
         if (value == null || value.isBlank()) {
             return null;
         }
@@ -132,8 +121,8 @@ public final class IpoStockViewMapper {
 
             if (found == index) {
                 try {
-                    return LocalDate.parse(year + "." + month + "." + day, DATE_FORMATTER);
-                } catch (DateTimeParseException ignored) {
+                    return LocalDate.of(Integer.parseInt(year), Integer.parseInt(month), Integer.parseInt(day));
+                } catch (RuntimeException ignored) {
                     return null;
                 }
             }
@@ -141,4 +130,14 @@ public final class IpoStockViewMapper {
         }
         return null;
     }
+
+    private static String firstText(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
 }

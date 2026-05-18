@@ -257,6 +257,32 @@ class IpoServiceTest {
     }
 
     @Test
+    @DisplayName("일정 테이블 데이터가 없으면 ipo_main 텍스트 일정에서 상세 일정을 보완한다")
+    void getIpoDetail_whenScheduleMissing_usesIpoMainTextDates() {
+        Long ipoId = 6L;
+        IpoStock ipoStock = ipoStock(
+                ipoId,
+                "텍스트 일정 기업",
+                "설명",
+                new BigDecimal("14000.00"),
+                LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 9, 2),
+                LocalDate.of(2026, 9, 20)
+        );
+        ReflectionTestUtils.setField(ipoStock, "demandForecastDate", "2026-08-25 ~ 2026-08-26");
+        ReflectionTestUtils.setField(ipoStock, "refundDate", "2026.09.05");
+
+        stubDefaultDetailSources(ipoId, ipoStock);
+
+        IpoDetailResponse response = ipoService.getIpoDetail(ipoId, null);
+
+        assertThat(response.schedule().demandForecastPeriod().startDate()).isEqualTo(LocalDate.of(2026, 8, 25));
+        assertThat(response.schedule().demandForecastPeriod().endDate()).isEqualTo(LocalDate.of(2026, 8, 26));
+        assertThat(response.schedule().refundDate()).isEqualTo(LocalDate.of(2026, 9, 5));
+        assertThat(response.schedule().listingDate()).isEqualTo(LocalDate.of(2026, 9, 20));
+    }
+
+    @Test
     @DisplayName("매력지수는 ipo_main attract_score를 사용한다")
     void getIpoDetail_usesIpoMainAttractScore() {
         Long ipoId = 4L;

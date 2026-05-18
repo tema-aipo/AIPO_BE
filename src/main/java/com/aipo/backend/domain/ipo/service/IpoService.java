@@ -163,6 +163,16 @@ public class IpoService {
         LocalDate refundDate = findScheduleDate(schedules, ScheduleType.REFUND);
         LocalDate listingDate = findScheduleDate(schedules, ScheduleType.LISTING);
 
+        if (demandForecastStartDate == null) {
+            demandForecastStartDate = IpoStockViewMapper.parseDateText(ipo.getDemandForecastDate(), 0);
+        }
+        if (demandForecastEndDate == null) {
+            demandForecastEndDate = IpoStockViewMapper.parseDateText(ipo.getDemandForecastDate(), 1);
+        }
+        if (refundDate == null) {
+            refundDate = IpoStockViewMapper.parseDateText(ipo.getRefundDate(), 0);
+        }
+
         return new ScheduleSection(
                 new DateRange(demandForecastStartDate, demandForecastEndDate),
                 new DateRange(

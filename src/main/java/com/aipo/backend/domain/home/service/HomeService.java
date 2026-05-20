@@ -8,6 +8,7 @@ import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -59,14 +60,18 @@ public class HomeService {
         List<IpoLeadManager> managers = ipoLeadManagerRepository.findAllByStock_IdIn(stockIds);
 
         // stockId → 첫 번째 주관사명 매핑 (displayOrder 최솟값)
-        Map<Long, String> leadManagerMap = managers.stream()
+        Map<Long, String> leadManagerMap = new HashMap<>(managers.stream()
                 .collect(Collectors.toMap(
                         m -> m.getStock().getId(),
                         IpoLeadManager::getManagerName,
                         (existing, replacement) -> existing  // 중복 시 첫 번째 유지
-                ));
+                )));
 
         // 기존 items에 leadManager 주입하여 새 객체 생성
+        ipoStockRepository.findUnderwritersByStockIds(stockIds)
+                .forEach((stockId, underwriter) ->
+                        leadManagerMap.putIfAbsent(stockId, firstUnderwriter(underwriter)));
+
         return items.stream()
                 .map(item -> new AttractivenessItem(
                         item.ipoId(),
@@ -79,6 +84,20 @@ public class HomeService {
                         item.refundDate()
                 ))
                 .toList();
+    }
+
+    private String firstUnderwriter(String underwriter) {
+        if (underwriter == null || underwriter.isBlank()) {
+            return "-";
+        }
+
+        for (String name : underwriter.split(",")) {
+            String trimmed = name.trim();
+            if (!trimmed.isEmpty()) {
+                return trimmed;
+            }
+        }
+        return "-";
     }
 
     private List<FeaturedIpoItem> applyFeaturedRank(List<FeaturedIpoItem> items) {

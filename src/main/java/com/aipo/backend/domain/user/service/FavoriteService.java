@@ -3,6 +3,7 @@ package com.aipo.backend.domain.user.service;
 import com.aipo.backend.domain.ipo.dto.DateRange;
 import com.aipo.backend.domain.ipo.entity.*;
 import com.aipo.backend.domain.ipo.repository.*;
+import com.aipo.backend.domain.ipo.service.IpoStockViewMapper;
 import com.aipo.backend.domain.user.dto.FavoriteStockResponse;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
@@ -109,7 +110,7 @@ public class FavoriteService {
 
         return new FavoriteStockResponse(
                 stock.getId(),
-                stock.getCompanyName(),
+                IpoStockViewMapper.displayCompanyName(stock),
                 stock.getOneLineDescription(),
                 stock.getConfirmedOfferPrice(),
                 new DateRange(stock.getSubscriptionStartDate(), stock.getSubscriptionEndDate()),

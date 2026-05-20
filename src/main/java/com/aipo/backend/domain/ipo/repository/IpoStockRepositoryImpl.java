@@ -13,6 +13,8 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Repository
 public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
@@ -225,6 +227,30 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 .getSingleResult();
     }
 
+    @Override
+    public Map<Long, String> findUnderwritersByStockIds(List<Long> stockIds) {
+        if (stockIds == null || stockIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<?> rows = em.createNativeQuery("""
+                select m.stock_id, m.underwriter
+                from ipo_main m
+                where m.stock_id in (:stockIds)
+                """)
+                .setParameter("stockIds", stockIds)
+                .getResultList();
+
+        return rows.stream()
+                .map(row -> (Object[]) row)
+                .filter(row -> row[1] != null && !row[1].toString().isBlank())
+                .collect(Collectors.toMap(
+                        row -> toLong(row[0]),
+                        row -> row[1].toString(),
+                        (existing, replacement) -> existing
+                ));
+    }
+
     private AttractivenessItem toAttractivenessItem(IpoStock stock) {
         return new AttractivenessItem(
                 stock.getId(),
@@ -271,7 +297,7 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 0,
                 IpoStockViewMapper.displayName(toString(row[1]), toString(row[2]), toString(row[3])),
                 displayScore(row[4], row[5]),
-                toLong(row[6])
+                toLong(row[4])
         );
     }
 

@@ -6,6 +6,7 @@ import com.aipo.backend.domain.home.dto.TrendingIpoItem;
 import com.aipo.backend.domain.ipo.dto.IpoListItem;
 
 import java.util.List;
+import java.util.Map;
 
 // 홈 API에서 필요한 전용 조회 메서드를 선언하는 인터페이스
 public interface IpoStockRepositoryCustom {
@@ -28,4 +29,6 @@ public interface IpoStockRepositoryCustom {
     List<IpoListItem> findIpoList(int page, int size, String keyword, String sort, String direction);
 
     long countIpoList(String keyword);
+
+    Map<Long, String> findUnderwritersByStockIds(List<Long> stockIds);
 }

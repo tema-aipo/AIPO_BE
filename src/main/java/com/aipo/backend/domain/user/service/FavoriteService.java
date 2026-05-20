@@ -40,6 +40,7 @@ public class FavoriteService {
         List<IpoLeadManager> managers = ipoLeadManagerRepository.findAllByStock_IdIn(stockIds);
         Map<Long, List<IpoLeadManager>> managersByStockId = managers.stream()
                 .collect(Collectors.groupingBy(m -> m.getStock().getId()));
+        Map<Long, String> underwritersByStockId = ipoStockRepository.findUnderwritersByStockIds(stockIds);
 
         // 2. Batch load refund schedules
         List<IpoSchedule> refundSchedules = ipoScheduleRepository
@@ -52,13 +53,14 @@ public class FavoriteService {
                 ));
 
         return favorites.stream()
-                .map(favoriteStock -> toResponse(favoriteStock, managersByStockId, refundDateByStockId))
+                .map(favoriteStock -> toResponse(favoriteStock, managersByStockId, underwritersByStockId, refundDateByStockId))
                 .toList();
     }
 
     private FavoriteStockResponse toResponse(
             UserFavoriteStock favoriteStock,
             Map<Long, List<IpoLeadManager>> managersByStockId,
+            Map<Long, String> underwritersByStockId,
             Map<Long, java.time.LocalDate> refundDateByStockId
     ) {
         IpoStock stock = favoriteStock.getStock();
@@ -69,7 +71,11 @@ public class FavoriteService {
 
         // 2. Lead Manager
         List<IpoLeadManager> stockManagers = managersByStockId.getOrDefault(stockId, Collections.emptyList());
-        String leadManager = stockManagers.isEmpty() ? "-" : stockManagers.get(0).getManagerName();
+        String leadManager = stockManagers.stream()
+                .map(IpoLeadManager::getManagerName)
+                .filter(this::hasTextValue)
+                .findFirst()
+                .orElseGet(() -> firstUnderwriter(underwritersByStockId.get(stockId)));
 
         // 3. Status and DateRange
         String status = null;
@@ -120,6 +126,24 @@ public class FavoriteService {
                 status,
                 dateRange
         );
+    }
+
+    private String firstUnderwriter(String underwriter) {
+        if (underwriter == null || underwriter.isBlank()) {
+            return "-";
+        }
+
+        for (String name : underwriter.split(",")) {
+            String trimmed = name.trim();
+            if (hasTextValue(trimmed)) {
+                return trimmed;
+            }
+        }
+        return "-";
+    }
+
+    private boolean hasTextValue(String value) {
+        return value != null && !value.isBlank() && !"-".equals(value.trim());
     }
 
     @Transactional

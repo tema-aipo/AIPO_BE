@@ -16,6 +16,7 @@ import java.lang.reflect.Constructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -46,10 +47,11 @@ class CalendarServiceTest {
         ReflectionTestUtils.setField(stock, "refundDate", "2026.04.30");
 
         when(ipoStockRepository.findAll()).thenReturn(List.of(stock));
-        when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
+        when(ipoLeadManagerRepository.findAllByStock_IdIn(List.of(ipoId))).thenReturn(List.of(
                 leadManager(stock, "주관사A", 1),
                 leadManager(stock, "주관사B", 2)
         ));
+        when(ipoStockRepository.findUnderwritersByStockIds(List.of(ipoId))).thenReturn(Map.of());
         CalendarMonthResponse response = calendarService.getMonthlyCalendar(
                 2026,
                 4,
@@ -110,7 +112,8 @@ class CalendarServiceTest {
 
         when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
         when(ipoStockRepository.findAll()).thenReturn(List.of(firstStock, secondStock));
-        when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(1L)).thenReturn(List.of());
+        when(ipoLeadManagerRepository.findAllByStock_IdIn(List.of(1L))).thenReturn(List.of());
+        when(ipoStockRepository.findUnderwritersByStockIds(List.of(1L))).thenReturn(Map.of());
 
         CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 5, null);
 

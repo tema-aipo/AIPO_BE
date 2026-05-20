@@ -61,9 +61,10 @@ public class HomeService {
 
         // stockId → 첫 번째 주관사명 매핑 (displayOrder 최솟값)
         Map<Long, String> leadManagerMap = new HashMap<>(managers.stream()
+                .filter(manager -> hasTextValue(manager.getManagerName()))
                 .collect(Collectors.toMap(
                         m -> m.getStock().getId(),
-                        IpoLeadManager::getManagerName,
+                        manager -> manager.getManagerName().trim(),
                         (existing, replacement) -> existing  // 중복 시 첫 번째 유지
                 )));
 
@@ -93,11 +94,15 @@ public class HomeService {
 
         for (String name : underwriter.split(",")) {
             String trimmed = name.trim();
-            if (!trimmed.isEmpty()) {
+            if (hasTextValue(trimmed)) {
                 return trimmed;
             }
         }
         return "-";
+    }
+
+    private boolean hasTextValue(String value) {
+        return value != null && !value.isBlank() && !"-".equals(value.trim());
     }
 
     private List<FeaturedIpoItem> applyFeaturedRank(List<FeaturedIpoItem> items) {

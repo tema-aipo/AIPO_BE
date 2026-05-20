@@ -23,9 +23,11 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -87,11 +89,17 @@ public class CalendarService {
     }
 
     private SelectedDateSection buildSelectedDateSection(LocalDate selectedDate, List<CalendarSchedule> schedules) {
+        List<Long> stockIds = schedules.stream()
+                .map(schedule -> schedule.stock().getId())
+                .distinct()
+                .toList();
+        Map<Long, String> leadManagerMap = buildLeadManagerMap(stockIds);
+
         List<SelectedDateCompanyItem> companies = schedules.stream()
                 .sorted(Comparator
                         .comparing((CalendarSchedule schedule) -> schedule.stock().getId())
                         .thenComparing(CalendarSchedule::scheduleType))
-                .map(this::toSelectedDateCompanyItem)
+                .map(schedule -> toSelectedDateCompanyItem(schedule, leadManagerMap))
                 .toList();
 
         return new SelectedDateSection(selectedDate, companies);
@@ -106,13 +114,16 @@ public class CalendarService {
         );
     }
 
-    private SelectedDateCompanyItem toSelectedDateCompanyItem(CalendarSchedule schedule) {
+    private SelectedDateCompanyItem toSelectedDateCompanyItem(
+            CalendarSchedule schedule,
+            Map<Long, String> leadManagerMap
+    ) {
         Long stockId = schedule.stock().getId();
 
         return new SelectedDateCompanyItem(
                 stockId,
                 IpoStockViewMapper.displayCompanyName(schedule.stock()),
-                getRepresentativeSecuritiesCompanyName(stockId),
+                leadManagerMap.getOrDefault(stockId, "-"),
                 toAttractionScore(schedule.stock().getAttractScore()),
                 schedule.scheduleType().name(),
                 getScheduleLabel(schedule.scheduleType())
@@ -149,11 +160,43 @@ public class CalendarService {
         }
     }
 
-    private String getRepresentativeSecuritiesCompanyName(Long stockId) {
-        return ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(stockId).stream()
-                .findFirst()
-                .map(IpoLeadManager::getManagerName)
-                .orElse(null);
+    private Map<Long, String> buildLeadManagerMap(List<Long> stockIds) {
+        if (stockIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<IpoLeadManager> managers = ipoLeadManagerRepository.findAllByStock_IdIn(stockIds);
+        Map<Long, String> leadManagerMap = new HashMap<>(managers.stream()
+                .filter(manager -> hasTextValue(manager.getManagerName()))
+                .collect(Collectors.toMap(
+                        manager -> manager.getStock().getId(),
+                        manager -> manager.getManagerName().trim(),
+                        (existing, replacement) -> existing
+                )));
+
+        ipoStockRepository.findUnderwritersByStockIds(stockIds)
+                .forEach((stockId, underwriter) ->
+                        leadManagerMap.putIfAbsent(stockId, firstUnderwriter(underwriter)));
+
+        return leadManagerMap;
+    }
+
+    private String firstUnderwriter(String underwriter) {
+        if (underwriter == null || underwriter.isBlank()) {
+            return "-";
+        }
+
+        for (String name : underwriter.split(",")) {
+            String trimmed = name.trim();
+            if (hasTextValue(trimmed)) {
+                return trimmed;
+            }
+        }
+        return "-";
+    }
+
+    private boolean hasTextValue(String value) {
+        return value != null && !value.isBlank() && !"-".equals(value.trim());
     }
 
     private BigDecimal toAttractionScore(Float attractScore) {

@@ -82,7 +82,8 @@ public class HomeService {
                         item.subscriptionEndDate(),
                         leadManagerMap.getOrDefault(item.ipoId(), "-"),
                         item.demandForecastDate(),
-                        item.refundDate()
+                        item.refundDate(),
+                        item.listingDate()
                 ))
                 .toList();
     }

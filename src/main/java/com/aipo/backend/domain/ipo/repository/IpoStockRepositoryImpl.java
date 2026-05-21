@@ -89,7 +89,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
                     m.subscription_date,
                     m.demand_forecast_date,
-                    m.refund_date
+                    m.refund_date,
+                    date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                 from ipo_main m
                 order by coalesce(m.recent_growth_score, 0) desc,
                     coalesce(m.attract_score, 0) desc,
@@ -116,7 +117,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
                     m.subscription_date,
                     m.demand_forecast_date,
-                    m.refund_date
+                    m.refund_date,
+                    date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                 from ipo_main m
                 where nullif(m.subscription_start_date, '0000-00-00') >= :today
                     or nullif(m.subscription_end_date, '0000-00-00') >= :today
@@ -141,7 +143,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                         date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
                         m.subscription_date,
                         m.demand_forecast_date,
-                        m.refund_date
+                        m.refund_date,
+                        date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                     from ipo_main m
                     order by coalesce(m.recent_growth_score, 0) desc,
                         coalesce(m.attract_score, 0) desc,
@@ -170,7 +173,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
                     m.subscription_date,
                     m.demand_forecast_date,
-                    m.refund_date
+                    m.refund_date,
+                    date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                 from ipo_main m
                 order by (
                     select count(f.favorite_id)
@@ -260,7 +264,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 IpoStockViewMapper.subscriptionEndDate(stock),
                 null,
                 stock.getDemandForecastDate(),
-                stock.getRefundDate()
+                stock.getRefundDate(),
+                stock.getListingDate()
         );
     }
 
@@ -305,6 +310,7 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
         LocalDate startDate = IpoStockViewMapper.parseIsoDate(toString(row[6]));
         LocalDate endDate = IpoStockViewMapper.parseIsoDate(toString(row[7]));
         String subscriptionDate = toString(row[8]);
+        LocalDate listingDate = IpoStockViewMapper.parseIsoDate(toString(row[11]));
 
         return new AttractivenessItem(
                 toLong(row[0]),
@@ -314,7 +320,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 endDate != null ? endDate : IpoStockViewMapper.parseSubscriptionDateText(subscriptionDate, 1),
                 null,
                 toString(row[9]),
-                toString(row[10])
+                toString(row[10]),
+                listingDate
         );
     }
 

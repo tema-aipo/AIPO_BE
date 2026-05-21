@@ -10,7 +10,8 @@ public record AttractivenessItem(
         LocalDate subscriptionEndDate,
         String leadManager,
         String demandForecastDate,
-        String refundDate
+        String refundDate,
+        LocalDate listingDate
 ) {
     public AttractivenessItem(
             Long ipoId,
@@ -19,7 +20,7 @@ public record AttractivenessItem(
             LocalDate subscriptionStartDate,
             LocalDate subscriptionEndDate
     ) {
-        this(ipoId, name, score, subscriptionStartDate, subscriptionEndDate, null, null, null);
+        this(ipoId, name, score, subscriptionStartDate, subscriptionEndDate, null, null, null, null);
     }
 
     public AttractivenessItem(
@@ -30,6 +31,6 @@ public record AttractivenessItem(
             LocalDate subscriptionEndDate,
             String leadManager
     ) {
-        this(ipoId, name, score, subscriptionStartDate, subscriptionEndDate, leadManager, null, null);
+        this(ipoId, name, score, subscriptionStartDate, subscriptionEndDate, leadManager, null, null, null);
     }
 }

@@ -11,6 +11,9 @@ import com.aipo.backend.domain.chat.repository.ChatMessageRepository;
 import com.aipo.backend.domain.chatbot.client.PythonChatbotClient;
 import com.aipo.backend.domain.chatbot.dto.PythonChatRequest;
 import com.aipo.backend.domain.chatbot.dto.PythonChatResponse;
+import com.aipo.backend.domain.investmentprofile.dto.InvestmentProfileResultResponse;
+import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileTestStatus;
+import com.aipo.backend.domain.investmentprofile.service.InvestmentProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,11 +26,12 @@ import java.util.List;
 public class ChatMessageService {
 
     private static final int CHAT_HISTORY_LIMIT = 10;
-    private static final String DEFAULT_USER_TYPE = "balance";
+    private static final String DEFAULT_USER_TYPE = "NEUTRAL";
 
     private final ChatSessionService chatSessionService;
     private final ChatMessageRepository chatMessageRepository;
     private final PythonChatbotClient pythonChatbotClient;
+    private final InvestmentProfileService investmentProfileService;
 
     @Transactional
     public SendChatMessageResponse sendMessage(Long userId, Long sessionId, String question) {
@@ -47,7 +51,7 @@ public class ChatMessageService {
         PythonChatResponse chatbotResponse = pythonChatbotClient.chat(new PythonChatRequest(
                 String.valueOf(userId),
                 normalizedQuestion,
-                DEFAULT_USER_TYPE,
+                resolveCurrentUserType(userId),
                 chatHistory
         ));
 
@@ -105,6 +109,14 @@ public class ChatMessageService {
             return "human";
         }
         return "ai";
+    }
+
+    private String resolveCurrentUserType(Long userId) {
+        InvestmentProfileResultResponse result = investmentProfileService.getCurrentResult(userId);
+        if (result.testStatus() == InvestmentProfileTestStatus.COMPLETED && result.profileType() != null) {
+            return result.profileType().name();
+        }
+        return DEFAULT_USER_TYPE;
     }
 
     private ChatMessageItem toMessageItem(ChatMessage message) {

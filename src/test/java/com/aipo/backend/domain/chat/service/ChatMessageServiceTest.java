@@ -8,6 +8,10 @@ import com.aipo.backend.domain.chat.entity.MessageType;
 import com.aipo.backend.domain.chat.repository.ChatMessageRepository;
 import com.aipo.backend.domain.chatbot.client.PythonChatbotClient;
 import com.aipo.backend.domain.chatbot.dto.PythonChatResponse;
+import com.aipo.backend.domain.investmentprofile.dto.InvestmentProfileResultResponse;
+import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileTestStatus;
+import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
+import com.aipo.backend.domain.investmentprofile.service.InvestmentProfileService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +40,9 @@ class ChatMessageServiceTest {
     @Mock
     private PythonChatbotClient pythonChatbotClient;
 
+    @Mock
+    private InvestmentProfileService investmentProfileService;
+
     @InjectMocks
     private ChatMessageService chatMessageService;
 
@@ -50,6 +57,7 @@ class ChatMessageServiceTest {
         when(chatMessageRepository.countByChatSession_IdAndMessageRole(sessionId, MessageRole.USER)).thenReturn(0L);
         when(chatMessageRepository.findAllByChatSession_IdOrderBySequenceNoAsc(sessionId)).thenReturn(List.of());
         when(chatMessageRepository.findTopByChatSession_IdOrderBySequenceNoDesc(sessionId)).thenReturn(Optional.empty());
+        when(investmentProfileService.getCurrentResult(userId)).thenReturn(completedProfile(InvestmentProfileType.AGGRESSIVE));
         when(pythonChatbotClient.chat(any())).thenReturn(new PythonChatResponse("success", "AI 답변입니다.", String.valueOf(userId)));
         when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> {
             ChatMessage message = invocation.getArgument(0);
@@ -82,6 +90,7 @@ class ChatMessageServiceTest {
         when(chatMessageRepository.findAllByChatSession_IdOrderBySequenceNoAsc(sessionId)).thenReturn(List.of());
         when(chatMessageRepository.findTopByChatSession_IdOrderBySequenceNoDesc(sessionId))
                 .thenReturn(Optional.of(message(session, 10L, MessageRole.ASSISTANT, "이전 답변", 2)));
+        when(investmentProfileService.getCurrentResult(userId)).thenReturn(completedProfile(InvestmentProfileType.AGGRESSIVE));
         when(pythonChatbotClient.chat(any())).thenReturn(new PythonChatResponse("success", "AI 답변입니다.", String.valueOf(userId)));
         when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -113,5 +122,22 @@ class ChatMessageServiceTest {
         ChatMessage message = ChatMessage.create(session, role, MessageType.TEXT, content, sequenceNo);
         ReflectionTestUtils.setField(message, "id", id);
         return message;
+    }
+
+    private InvestmentProfileResultResponse completedProfile(InvestmentProfileType profileType) {
+        return new InvestmentProfileResultResponse(
+                1L,
+                1,
+                InvestmentProfileTestStatus.COMPLETED,
+                profileType,
+                "profile",
+                "title",
+                "description",
+                List.of(),
+                "start",
+                "next",
+                10,
+                LocalDateTime.now()
+        );
     }
 }

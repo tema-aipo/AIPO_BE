@@ -111,35 +111,35 @@ public class HomeService {
                     .toList();
             case SUBSCRIPTION_UPCOMING -> {
                 LocalDate today = LocalDate.now();
-                List<AttractivenessItem> upcoming = items.stream()
-                        .filter(item -> {
-                            LocalDate date = subscriptionSortDate(item);
-                            return date != null && !date.isBefore(today);
-                        })
+                yield items.stream()
+                        .filter(item -> isSubscriptionActiveOrUpcoming(item, today))
                         .sorted(Comparator
-                                .comparing(this::subscriptionSortDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                                .comparing((AttractivenessItem item) -> subscriptionUpcomingSortDate(item, today),
+                                        Comparator.nullsLast(Comparator.naturalOrder()))
                                 .thenComparing(AttractivenessItem::ipoId))
                         .limit(10)
-                        .toList();
-                if (!upcoming.isEmpty()) {
-                    yield upcoming;
-                }
-                yield items.stream()
-                        .sorted(Comparator
-                                .comparing(this::subscriptionSortDate, Comparator.nullsLast(Comparator.naturalOrder()))
-                                .thenComparing(AttractivenessItem::ipoId))
-                        .limit(5)
                         .toList();
             }
             case FAVORITE -> items;
         };
     }
 
-    private LocalDate subscriptionSortDate(AttractivenessItem item) {
-        if (item.subscriptionStartDate() != null) {
-            return item.subscriptionStartDate();
+    private boolean isSubscriptionActiveOrUpcoming(AttractivenessItem item, LocalDate today) {
+        LocalDate startDate = item.subscriptionStartDate();
+        LocalDate endDate = item.subscriptionEndDate();
+
+        if (endDate != null) {
+            return !endDate.isBefore(today);
         }
-        return item.subscriptionEndDate();
+        return startDate != null && !startDate.isBefore(today);
+    }
+
+    private LocalDate subscriptionUpcomingSortDate(AttractivenessItem item, LocalDate today) {
+        LocalDate startDate = item.subscriptionStartDate();
+        if (startDate == null || startDate.isBefore(today)) {
+            return today;
+        }
+        return startDate;
     }
 
     private InvestmentProfileType currentProfileType(Long userId) {

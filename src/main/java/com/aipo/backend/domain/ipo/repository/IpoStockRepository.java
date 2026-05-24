@@ -47,4 +47,17 @@ public interface IpoStockRepository extends JpaRepository<IpoStock, Long>, IpoSt
             where m.stock_id = :stockId
             """, nativeQuery = true)
     Optional<IpoDetailProjection> findDetailByStockId(@Param("stockId") Long stockId);
+
+    @Query(value = """
+            select
+                m.stock_id as stockId,
+                m.corp_name as corpName,
+                cast(m.competition_ratio as char) as competitionRatio,
+                cast(m.subscription_ratio as char) as subscriptionRatio,
+                cast(m.inst_commitment_ratio as char) as instCommitmentRatio,
+                cast(m.floating_stock_ratio as char) as floatingStockRatio,
+                cast(m.lockup_total_ratio as char) as lockupTotalRatio
+            from ipo_main m
+            """, nativeQuery = true)
+    List<AttractivenessIpoProjection> findAllForAttractiveness();
 }

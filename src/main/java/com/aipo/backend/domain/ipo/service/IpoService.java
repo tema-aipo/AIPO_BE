@@ -1,5 +1,7 @@
 package com.aipo.backend.domain.ipo.service;
 
+import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
+import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
 import com.aipo.backend.domain.ipo.dto.*;
 import com.aipo.backend.domain.ipo.entity.*;
 import com.aipo.backend.domain.ipo.repository.*;
@@ -32,6 +34,8 @@ public class IpoService {
     private final IpoDepositInfoRepository ipoDepositInfoRepository;
     private final IpoOfferingInfoRepository ipoOfferingInfoRepository;
     private final UserFavoriteStockRepository userFavoriteStockRepository;
+    private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
+    private final AttractivenessService attractivenessService;
 
     public IpoListResponse getIpos(int page, int size, String keyword, String sort, String direction) {
         int normalizedPage = Math.max(page, DEFAULT_PAGE);
@@ -64,11 +68,13 @@ public class IpoService {
                 ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId).orElse(null);
         List<IpoDepositInfo> depositInfos = ipoDepositInfoRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
         IpoOfferingInfo offeringInfo = ipoOfferingInfoRepository.findByStock_Id(ipoId).orElse(null);
+        AttractivenessResponse attractiveness = buildAttractiveness(ipo, userId);
 
         return new IpoDetailResponse(
                 ipo.getStockId(),
                 buildSummary(ipo, leadManagers, userId),
-                buildAttraction(ipo.getAttractScore(), attractionReasons),
+                buildAttraction(attractiveness, ipo.getAttractScore(), attractionReasons),
+                attractiveness,
                 buildDemandForecast(demandForecast),
                 buildSubscriptionCompetition(subscriptionCompetition),
                 buildSchedule(ipo),
@@ -111,12 +117,14 @@ public class IpoService {
     }
 
     private AttractionSection buildAttraction(
+            AttractivenessResponse attractiveness,
             Float attractScore,
             List<IpoAttractionReason> attractionReasons
     ) {
-        BigDecimal totalScore = attractScore == null
-                ? null
-                : BigDecimal.valueOf(attractScore);
+        // 기존 상세 응답 호환 필드인 attraction.totalScore는 새 중립형 매력지수로 내려준다.
+        BigDecimal totalScore = attractiveness != null
+                ? BigDecimal.valueOf(attractiveness.balanced().score())
+                : attractScore == null ? null : BigDecimal.valueOf(attractScore);
 
         List<AttractionReasonItem> reasons = attractionReasons == null
                 ? Collections.emptyList()
@@ -129,6 +137,39 @@ public class IpoService {
                 .toList();
 
         return new AttractionSection(totalScore, reasons);
+    }
+
+    private AttractivenessResponse buildAttractiveness(IpoDetailProjection ipo, Long userId) {
+        List<AttractivenessIpoProjection> allIpos = ipoStockRepository.findAllForAttractiveness();
+        if (allIpos == null || allIpos.isEmpty()) {
+            allIpos = List.of(toAttractivenessProjection(ipo));
+        }
+
+        AttractivenessIpoProjection targetIpo = allIpos.stream()
+                .filter(candidate -> ipo.getStockId().equals(candidate.getStockId()))
+                .findFirst()
+                .orElseGet(() -> toAttractivenessProjection(ipo));
+
+        InvestmentProfileType currentProfileType = userId == null
+                ? null
+                : userInvestmentProfileResultRepository
+                .findTopByUserIdAndCurrentTrueOrderByCreatedAtDescIdDesc(userId)
+                .map(result -> result.getProfileType())
+                .orElse(null);
+
+        return attractivenessService.calculateForIpo(targetIpo, allIpos, currentProfileType);
+    }
+
+    private AttractivenessIpoProjection toAttractivenessProjection(IpoDetailProjection ipo) {
+        return new SimpleAttractivenessIpoProjection(
+                ipo.getStockId(),
+                ipo.getCorpName(),
+                null,
+                null,
+                null,
+                null,
+                null
+        );
     }
 
     private DemandForecastSection buildDemandForecast(IpoDemandForecast demandForecast) {
@@ -253,5 +294,51 @@ public class IpoService {
             return null;
         }
         return keyword.trim();
+    }
+
+    private record SimpleAttractivenessIpoProjection(
+            Long stockId,
+            String corpName,
+            String competitionRatio,
+            String subscriptionRatio,
+            String instCommitmentRatio,
+            String floatingStockRatio,
+            String lockupTotalRatio
+    ) implements AttractivenessIpoProjection {
+
+        @Override
+        public Long getStockId() {
+            return stockId;
+        }
+
+        @Override
+        public String getCorpName() {
+            return corpName;
+        }
+
+        @Override
+        public String getCompetitionRatio() {
+            return competitionRatio;
+        }
+
+        @Override
+        public String getSubscriptionRatio() {
+            return subscriptionRatio;
+        }
+
+        @Override
+        public String getInstCommitmentRatio() {
+            return instCommitmentRatio;
+        }
+
+        @Override
+        public String getFloatingStockRatio() {
+            return floatingStockRatio;
+        }
+
+        @Override
+        public String getLockupTotalRatio() {
+            return lockupTotalRatio;
+        }
     }
 }

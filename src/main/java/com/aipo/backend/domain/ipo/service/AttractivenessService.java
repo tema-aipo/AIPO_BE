@@ -1,0 +1,245 @@
+package com.aipo.backend.domain.ipo.service;
+
+import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
+import com.aipo.backend.domain.ipo.dto.AttractivenessResponse;
+import com.aipo.backend.domain.ipo.dto.FactorScoresResponse;
+import com.aipo.backend.domain.ipo.dto.ProfileAttractivenessScore;
+import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
+import org.springframework.stereotype.Service;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Service
+public class AttractivenessService {
+
+    private static final String PROFILE_AGGRESSIVE = "aggressive";
+    private static final String PROFILE_BALANCED = "balanced";
+    private static final String PROFILE_CONSERVATIVE = "conservative";
+
+    private static final String DEFAULT_REASON = "기관 수요예측 경쟁률, 일반 청약 경쟁률, 의무보유확약, 유통가능물량, 보호예수 비율을 종합하여 산출한 기본 매력지수입니다.";
+    private static final String AGGRESSIVE_REASON = "기관 수요예측 경쟁률과 일반 청약 경쟁률을 중심으로 단기 수급 기대를 반영한 결과입니다.";
+    private static final String BALANCED_REASON = "기관 수요와 수급 안정성을 균형 있게 반영한 결과입니다.";
+    private static final String CONSERVATIVE_REASON = "의무보유확약 비율, 유통가능물량 비율, 보호예수 비율을 중심으로 안정성을 평가한 결과입니다.";
+    private static final String SPAC_NOTICE = "이 종목은 스팩주로, 일반 기업 IPO와 구조가 다를 수 있습니다. 의무보유확약 등 일부 지표는 일반 IPO와 해석이 다를 수 있으므로 참고용으로 확인하세요.";
+
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("[-+]?\\d+(?:\\.\\d+)?");
+
+    public AttractivenessResponse calculateForIpo(
+            AttractivenessIpoProjection targetIpo,
+            List<AttractivenessIpoProjection> allIpos,
+            InvestmentProfileType currentProfileType
+    ) {
+        FactorScoresResponse factorScores = calculateFactorScores(targetIpo, allIpos);
+
+        int aggressiveScore = calculateWeightedScore(
+                factorScores,
+                0.35,
+                0.30,
+                0.15,
+                0.15,
+                0.05
+        );
+        int balancedScore = calculateWeightedScore(
+                factorScores,
+                0.30,
+                0.15,
+                0.25,
+                0.25,
+                0.05
+        );
+        int conservativeScore = calculateWeightedScore(
+                factorScores,
+                0.15,
+                0.05,
+                0.35,
+                0.30,
+                0.15
+        );
+
+        ProfileAttractivenessScore defaultScore =
+                new ProfileAttractivenessScore(balancedScore, getGrade(balancedScore), DEFAULT_REASON);
+        ProfileAttractivenessScore aggressive =
+                new ProfileAttractivenessScore(aggressiveScore, getGrade(aggressiveScore), AGGRESSIVE_REASON);
+        ProfileAttractivenessScore balanced =
+                new ProfileAttractivenessScore(balancedScore, getGrade(balancedScore), BALANCED_REASON);
+        ProfileAttractivenessScore conservative =
+                new ProfileAttractivenessScore(conservativeScore, getGrade(conservativeScore), CONSERVATIVE_REASON);
+
+        String selectedProfile = mapProfileType(currentProfileType);
+        ProfileAttractivenessScore selected = switch (selectedProfile == null ? "" : selectedProfile) {
+            case PROFILE_AGGRESSIVE -> aggressive;
+            case PROFILE_BALANCED -> balanced;
+            case PROFILE_CONSERVATIVE -> conservative;
+            default -> defaultScore;
+        };
+
+        return new AttractivenessResponse(
+                defaultScore,
+                selectedProfile,
+                selected,
+                aggressive,
+                balanced,
+                conservative,
+                factorScores,
+                detectSpacNotice(targetIpo.getCorpName())
+        );
+    }
+
+    public FactorScoresResponse calculateFactorScores(
+            AttractivenessIpoProjection targetIpo,
+            List<AttractivenessIpoProjection> allIpos
+    ) {
+        return new FactorScoresResponse(
+                calculatePercentileScore(
+                        log1p(parseNumber(targetIpo.getCompetitionRatio())),
+                        allIpos.stream().map(ipo -> log1p(parseNumber(ipo.getCompetitionRatio()))).toList(),
+                        false
+                ),
+                calculatePercentileScore(
+                        log1p(parseNumber(targetIpo.getSubscriptionRatio())),
+                        allIpos.stream().map(ipo -> log1p(parseNumber(ipo.getSubscriptionRatio()))).toList(),
+                        false
+                ),
+                calculatePercentileScore(
+                        parseNumber(targetIpo.getInstCommitmentRatio()),
+                        allIpos.stream().map(ipo -> parseNumber(ipo.getInstCommitmentRatio())).toList(),
+                        false
+                ),
+                calculatePercentileScore(
+                        parseNumber(targetIpo.getFloatingStockRatio()),
+                        allIpos.stream().map(ipo -> parseNumber(ipo.getFloatingStockRatio())).toList(),
+                        true
+                ),
+                calculatePercentileScore(
+                        parseNumber(targetIpo.getLockupTotalRatio()),
+                        allIpos.stream().map(ipo -> parseNumber(ipo.getLockupTotalRatio())).toList(),
+                        false
+                )
+        );
+    }
+
+    public int calculatePercentileScore(Double targetValue, List<Double> values, boolean lowerIsBetter) {
+        // 결측값은 중립 점수 50점으로 대체
+        if (targetValue == null) {
+            return 50;
+        }
+
+        List<Double> sortedValues = values.stream()
+                .filter(Objects::nonNull)
+                .sorted(Comparator.naturalOrder())
+                .toList();
+
+        if (sortedValues.isEmpty()) {
+            return 50;
+        }
+
+        long lowerCount = sortedValues.stream()
+                .filter(value -> value < targetValue)
+                .count();
+        long equalCount = sortedValues.stream()
+                .filter(value -> value.equals(targetValue))
+                .count();
+
+        double percentile = (lowerCount + (equalCount * 0.5)) / sortedValues.size();
+        int score = (int) Math.round(percentile * 100);
+        if (lowerIsBetter) {
+            score = 100 - score;
+        }
+        return Math.max(0, Math.min(100, score));
+    }
+
+    public Double parseNumber(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value.trim().replace(",", "");
+        if (normalized.isEmpty()
+                || "-".equals(normalized)
+                || "|".equals(normalized)) {
+            return null;
+        }
+
+        Matcher matcher = NUMBER_PATTERN.matcher(normalized);
+        if (!matcher.find()) {
+            return null;
+        }
+
+        try {
+            return Double.parseDouble(matcher.group());
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
+    public String getGrade(int score) {
+        if (score >= 85) {
+            return "매우 높음";
+        }
+        if (score >= 70) {
+            return "높음";
+        }
+        if (score >= 55) {
+            return "보통";
+        }
+        if (score >= 40) {
+            return "낮음";
+        }
+        return "주의";
+    }
+
+    public String mapProfileType(InvestmentProfileType profileType) {
+        if (profileType == null) {
+            return null;
+        }
+
+        return switch (profileType) {
+            case AGGRESSIVE -> PROFILE_AGGRESSIVE;
+            case NEUTRAL -> PROFILE_BALANCED;
+            case STABLE -> PROFILE_CONSERVATIVE;
+        };
+    }
+
+    public String detectSpacNotice(String corpName) {
+        if (corpName == null || corpName.isBlank()) {
+            return null;
+        }
+
+        String upperName = corpName.toUpperCase(Locale.ROOT);
+        if (corpName.contains("스팩")
+                || upperName.contains("SPAC")
+                || corpName.contains("기업인수목적")) {
+            return SPAC_NOTICE;
+        }
+        return null;
+    }
+
+    private int calculateWeightedScore(
+            FactorScoresResponse factorScores,
+            double competitionWeight,
+            double subscriptionWeight,
+            double instCommitmentWeight,
+            double floatingStockWeight,
+            double lockupWeight
+    ) {
+        return (int) Math.round(
+                factorScores.competitionScore() * competitionWeight
+                        + factorScores.subscriptionScore() * subscriptionWeight
+                        + factorScores.instCommitmentScore() * instCommitmentWeight
+                        + factorScores.floatingStockScore() * floatingStockWeight
+                        + factorScores.lockupScore() * lockupWeight
+        );
+    }
+
+    private Double log1p(Double value) {
+        if (value == null) {
+            return null;
+        }
+        return Math.log1p(Math.max(0, value));
+    }
+}

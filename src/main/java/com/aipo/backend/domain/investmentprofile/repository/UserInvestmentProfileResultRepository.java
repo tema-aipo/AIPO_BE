@@ -12,6 +12,8 @@ public interface UserInvestmentProfileResultRepository extends JpaRepository<Use
 
     Optional<UserInvestmentProfileResult> findByUserIdAndCurrentTrue(Long userId);
 
+    Optional<UserInvestmentProfileResult> findTopByUserIdAndCurrentTrueOrderByCreatedAtDescIdDesc(Long userId);
+
     boolean existsByUserIdAndCurrentTrue(Long userId);
 
     @Modifying

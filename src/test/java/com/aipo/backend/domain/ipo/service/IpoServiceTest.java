@@ -1,5 +1,6 @@
 package com.aipo.backend.domain.ipo.service;
 
+import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
 import com.aipo.backend.domain.ipo.dto.CompetitionTab;
 import com.aipo.backend.domain.ipo.dto.IpoDetailResponse;
 import com.aipo.backend.domain.ipo.dto.IpoListItem;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -72,6 +74,12 @@ class IpoServiceTest {
 
     @Mock
     private UserFavoriteStockRepository userFavoriteStockRepository;
+
+    @Mock
+    private UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
+
+    @Spy
+    private AttractivenessService attractivenessService = new AttractivenessService();
 
     @InjectMocks
     private IpoService ipoService;
@@ -159,7 +167,9 @@ class IpoServiceTest {
         assertThat(response.summary().subscriptionPeriod().startDate()).isEqualTo(LocalDate.of(2026, 4, 28));
         assertThat(response.summary().subscriptionPeriod().endDate()).isEqualTo(LocalDate.of(2026, 4, 29));
         assertThat(response.summary().isFavorite()).isTrue();
-        assertThat(response.attraction().totalScore()).isEqualByComparingTo("88");
+        assertThat(response.attraction().totalScore()).isEqualByComparingTo("50");
+        assertThat(response.attractiveness().selectedProfile()).isNull();
+        assertThat(response.attractiveness().selected().score()).isEqualTo(response.attractiveness().defaultScore().score());
         assertThat(response.attraction().reasons()).hasSize(2);
         assertThat(response.demandForecast().institutionalCompetitionRate()).isEqualByComparingTo("1234.56");
         assertThat(response.subscriptionCompetition().defaultTab()).isEqualTo(CompetitionTab.EQUAL);
@@ -235,7 +245,7 @@ class IpoServiceTest {
 
         assertThat(response.summary().leadManagers()).isEmpty();
         assertThat(response.summary().isFavorite()).isFalse();
-        assertThat(response.attraction().totalScore()).isNull();
+        assertThat(response.attraction().totalScore()).isEqualByComparingTo("50");
         assertThat(response.attraction().reasons()).isEmpty();
         assertThat(response.demandForecast().institutionalCompetitionRate()).isNull();
         assertThat(response.subscriptionCompetition().defaultTab()).isNull();
@@ -303,8 +313,8 @@ class IpoServiceTest {
     }
 
     @Test
-    @DisplayName("매력지수는 ipo_main attract_score를 사용한다")
-    void getIpoDetail_usesIpoMainAttractScore() {
+    @DisplayName("기존 매력지수 응답 필드는 새 중립형 점수를 사용한다")
+    void getIpoDetail_usesBalancedAttractivenessScoreForLegacyAttraction() {
         Long ipoId = 4L;
         IpoStock ipoStock = ipoStock(
                 ipoId,
@@ -321,7 +331,8 @@ class IpoServiceTest {
 
         IpoDetailResponse response = ipoService.getIpoDetail(ipoId, null);
 
-        assertThat(response.attraction().totalScore()).isEqualByComparingTo("91");
+        assertThat(response.attraction().totalScore()).isEqualByComparingTo("50");
+        assertThat(response.attractiveness().defaultScore().score()).isEqualTo(50);
     }
 
     @Test

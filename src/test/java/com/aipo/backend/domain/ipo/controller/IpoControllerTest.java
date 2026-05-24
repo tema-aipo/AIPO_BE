@@ -2,15 +2,18 @@ package com.aipo.backend.domain.ipo.controller;
 
 import com.aipo.backend.domain.ipo.dto.AttractionReasonItem;
 import com.aipo.backend.domain.ipo.dto.AttractionSection;
+import com.aipo.backend.domain.ipo.dto.AttractivenessResponse;
 import com.aipo.backend.domain.ipo.dto.CompetitionInfo;
 import com.aipo.backend.domain.ipo.dto.CompetitionTab;
 import com.aipo.backend.domain.ipo.dto.DateRange;
 import com.aipo.backend.domain.ipo.dto.DemandForecastSection;
 import com.aipo.backend.domain.ipo.dto.DepositInfoItem;
+import com.aipo.backend.domain.ipo.dto.FactorScoresResponse;
 import com.aipo.backend.domain.ipo.dto.IpoDetailResponse;
 import com.aipo.backend.domain.ipo.dto.IpoListItem;
 import com.aipo.backend.domain.ipo.dto.IpoListResponse;
 import com.aipo.backend.domain.ipo.dto.OfferingInfoSection;
+import com.aipo.backend.domain.ipo.dto.ProfileAttractivenessScore;
 import com.aipo.backend.domain.ipo.dto.ScheduleSection;
 import com.aipo.backend.domain.ipo.dto.SubscriptionCompetitionSection;
 import com.aipo.backend.domain.ipo.dto.SummarySection;
@@ -115,6 +118,8 @@ class IpoControllerTest {
                 .andExpect(jsonPath("$.ipoId").value(ipoId))
                 .andExpect(jsonPath("$.summary.companyName").value("AIPO"))
                 .andExpect(jsonPath("$.attraction.totalScore").value(87.5))
+                .andExpect(jsonPath("$.attractiveness.selectedProfile").value("aggressive"))
+                .andExpect(jsonPath("$.attractiveness.selected.score").value(86))
                 .andExpect(jsonPath("$.demandForecast.participatingInstitutionCount").value(1234))
                 .andExpect(jsonPath("$.subscriptionCompetition.defaultTab").value("EQUAL"))
                 .andExpect(jsonPath("$.schedule.refundDate").value("2026-05-02"))
@@ -184,6 +189,7 @@ class IpoControllerTest {
                 .andExpect(jsonPath("$.ipoId").exists())
                 .andExpect(jsonPath("$.summary").isMap())
                 .andExpect(jsonPath("$.attraction").isMap())
+                .andExpect(jsonPath("$.attractiveness").isMap())
                 .andExpect(jsonPath("$.demandForecast").isMap())
                 .andExpect(jsonPath("$.subscriptionCompetition").isMap())
                 .andExpect(jsonPath("$.schedule").isMap())
@@ -211,6 +217,7 @@ class IpoControllerTest {
                                 new AttractionReasonItem(1, "수요예측 강세", "기관 반응이 우수합니다.")
                         )
                 ),
+                createAttractiveness(),
                 new DemandForecastSection(
                         new BigDecimal("1234.56"),
                         1234,
@@ -240,6 +247,40 @@ class IpoControllerTest {
                         new BigDecimal("18.40"),
                         new BigDecimal("5.10")
                 )
+        );
+    }
+
+    private AttractivenessResponse createAttractiveness() {
+        ProfileAttractivenessScore defaultScore = new ProfileAttractivenessScore(
+                80,
+                "높음",
+                "기관 수요예측 경쟁률, 일반 청약 경쟁률, 의무보유확약, 유통가능물량, 보호예수 비율을 종합하여 산출한 기본 매력지수입니다."
+        );
+        ProfileAttractivenessScore aggressive = new ProfileAttractivenessScore(
+                86,
+                "매우 높음",
+                "기관 수요예측 경쟁률과 일반 청약 경쟁률을 중심으로 단기 수급 기대를 반영한 결과입니다."
+        );
+        ProfileAttractivenessScore balanced = new ProfileAttractivenessScore(
+                80,
+                "높음",
+                "기관 수요와 수급 안정성을 균형 있게 반영한 결과입니다."
+        );
+        ProfileAttractivenessScore conservative = new ProfileAttractivenessScore(
+                72,
+                "높음",
+                "의무보유확약 비율, 유통가능물량 비율, 보호예수 비율을 중심으로 안정성을 평가한 결과입니다."
+        );
+
+        return new AttractivenessResponse(
+                defaultScore,
+                "aggressive",
+                aggressive,
+                aggressive,
+                balanced,
+                conservative,
+                new FactorScoresResponse(82, 88, 76, 64, 70),
+                null
         );
     }
 }

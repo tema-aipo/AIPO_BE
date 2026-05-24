@@ -7,10 +7,8 @@ import com.aipo.backend.domain.ipo.dto.ProfileAttractivenessScore;
 import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,6 +21,7 @@ public class AttractivenessService {
     private static final double AGGRESSIVE_REMAINING_WEIGHT = 0.70;
     private static final double BALANCED_REMAINING_WEIGHT = 0.85;
     private static final double CONSERVATIVE_REMAINING_WEIGHT = 0.95;
+    private static final double COMPETITION_RATIO_SCORE_CAP = 1000.0;
 
     private static final String DEFAULT_REASON = "기관 수요예측 경쟁률, 의무보유확약, 유통가능물량, 보호예수 비율을 종합하여 산출한 기본 매력지수입니다.";
     private static final String AGGRESSIVE_REASON = "기관 수요예측 경쟁률을 중심으로 단기 수급 기대를 반영한 결과입니다.";
@@ -95,58 +94,17 @@ public class AttractivenessService {
             List<AttractivenessIpoProjection> allIpos
     ) {
         return new FactorScoresResponse(
-                calculatePercentileScore(
-                        log1p(parseNumber(targetIpo.getCompetitionRatio())),
-                        allIpos.stream().map(ipo -> log1p(parseNumber(ipo.getCompetitionRatio()))).toList(),
-                        false
-                ),
+                normalizeCompetitionRatio(parseNumber(targetIpo.getCompetitionRatio())),
                 null,
-                calculatePercentileScore(
-                        parseNumber(targetIpo.getInstCommitmentRatio()),
-                        allIpos.stream().map(ipo -> parseNumber(ipo.getInstCommitmentRatio())).toList(),
-                        false
-                ),
-                calculatePercentileScore(
-                        parseNumber(targetIpo.getFloatingStockRatio()),
-                        allIpos.stream().map(ipo -> parseNumber(ipo.getFloatingStockRatio())).toList(),
-                        true
-                ),
-                calculatePercentileScore(
-                        parseNumber(targetIpo.getLockupTotalRatio()),
-                        allIpos.stream().map(ipo -> parseNumber(ipo.getLockupTotalRatio())).toList(),
-                        false
-                )
+                normalizePercent(parseNumber(targetIpo.getInstCommitmentRatio())),
+                invertPercent(parseNumber(targetIpo.getFloatingStockRatio())),
+                normalizePercent(parseNumber(targetIpo.getLockupTotalRatio()))
         );
     }
 
     public int calculatePercentileScore(Double targetValue, List<Double> values, boolean lowerIsBetter) {
-        // 결측값은 중립 점수 50점으로 대체
-        if (targetValue == null) {
-            return 50;
-        }
-
-        List<Double> sortedValues = values.stream()
-                .filter(Objects::nonNull)
-                .sorted(Comparator.naturalOrder())
-                .toList();
-
-        if (sortedValues.isEmpty()) {
-            return 50;
-        }
-
-        long lowerCount = sortedValues.stream()
-                .filter(value -> value < targetValue)
-                .count();
-        long equalCount = sortedValues.stream()
-                .filter(value -> value.equals(targetValue))
-                .count();
-
-        double percentile = (lowerCount + (equalCount * 0.5)) / sortedValues.size();
-        int score = (int) Math.round(percentile * 100);
-        if (lowerIsBetter) {
-            score = 100 - score;
-        }
-        return Math.max(0, Math.min(100, score));
+        int score = normalizePercent(targetValue);
+        return lowerIsBetter ? 100 - score : score;
     }
 
     public Double parseNumber(String value) {
@@ -230,10 +188,28 @@ public class AttractivenessService {
         );
     }
 
-    private Double log1p(Double value) {
+    private int normalizeCompetitionRatio(Double value) {
         if (value == null) {
-            return null;
+            return 0;
         }
-        return Math.log1p(Math.max(0, value));
+        return clampScore((value / COMPETITION_RATIO_SCORE_CAP) * 100);
+    }
+
+    private int normalizePercent(Double value) {
+        if (value == null) {
+            return 0;
+        }
+        return clampScore(value);
+    }
+
+    private int invertPercent(Double value) {
+        if (value == null) {
+            return 0;
+        }
+        return 100 - normalizePercent(value);
+    }
+
+    private int clampScore(double value) {
+        return (int) Math.round(Math.max(0, Math.min(100, value)));
     }
 }

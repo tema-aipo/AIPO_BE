@@ -45,7 +45,7 @@ class CalendarControllerTest {
     void getMonthlyCalendar_anonymousUserCanAccess() throws Exception {
         CalendarMonthResponse response = createResponse();
 
-        when(calendarService.getMonthlyCalendar(2026, 4, LocalDate.of(2026, 4, 28)))
+        when(calendarService.getMonthlyCalendar(2026, 4, LocalDate.of(2026, 4, 28), null))
                 .thenReturn(response);
 
         mockMvc.perform(get("/api/v1/calendar")
@@ -57,7 +57,7 @@ class CalendarControllerTest {
                 .andExpect(jsonPath("$.year").value(2026))
                 .andExpect(jsonPath("$.month").value(4));
 
-        verify(calendarService).getMonthlyCalendar(2026, 4, LocalDate.of(2026, 4, 28));
+        verify(calendarService).getMonthlyCalendar(2026, 4, LocalDate.of(2026, 4, 28), null);
     }
 
     @Test
@@ -65,7 +65,7 @@ class CalendarControllerTest {
     void getMonthlyCalendar_withoutSelectedDate_passesNull() throws Exception {
         CalendarMonthResponse response = createResponse();
 
-        when(calendarService.getMonthlyCalendar(2026, 4, null))
+        when(calendarService.getMonthlyCalendar(2026, 4, null, null))
                 .thenReturn(response);
 
         mockMvc.perform(get("/api/v1/calendar")
@@ -73,13 +73,13 @@ class CalendarControllerTest {
                         .queryParam("month", "4"))
                 .andExpect(status().isOk());
 
-        verify(calendarService).getMonthlyCalendar(2026, 4, null);
+        verify(calendarService).getMonthlyCalendar(2026, 4, null, null);
     }
 
     @Test
     @DisplayName("응답 JSON은 캘린더 월별 일정 구조를 따른다")
     void getMonthlyCalendar_returnsExpectedJsonStructure() throws Exception {
-        when(calendarService.getMonthlyCalendar(2026, 4, LocalDate.of(2026, 4, 28)))
+        when(calendarService.getMonthlyCalendar(2026, 4, LocalDate.of(2026, 4, 28), null))
                 .thenReturn(createResponse());
 
         mockMvc.perform(get("/api/v1/calendar")
@@ -104,13 +104,13 @@ class CalendarControllerTest {
                 .andExpect(jsonPath("$.selectedDateSection.companies[0].attractionScore").value(88))
                 .andExpect(jsonPath("$.selectedDateSection.companies[0].scheduleLabel").value("청약 시작"));
 
-        verify(calendarService).getMonthlyCalendar(2026, 4, LocalDate.of(2026, 4, 28));
+        verify(calendarService).getMonthlyCalendar(2026, 4, LocalDate.of(2026, 4, 28), null);
     }
 
     @Test
     @DisplayName("selectedDate가 조회 월 밖이면 공통 예외 응답을 반환한다")
     void getMonthlyCalendar_whenSelectedDateOutOfMonth_returnsBadRequest() throws Exception {
-        when(calendarService.getMonthlyCalendar(2026, 4, LocalDate.of(2026, 5, 1)))
+        when(calendarService.getMonthlyCalendar(2026, 4, LocalDate.of(2026, 5, 1), null))
                 .thenThrow(new IllegalArgumentException("selectedDate must be within the requested year and month."));
 
         mockMvc.perform(get("/api/v1/calendar")

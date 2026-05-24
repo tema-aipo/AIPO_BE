@@ -1,10 +1,15 @@
 package com.aipo.backend.domain.calendar.service;
 
 import com.aipo.backend.domain.calendar.dto.CalendarMonthResponse;
+import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
+import com.aipo.backend.domain.ipo.dto.AttractivenessResponse;
+import com.aipo.backend.domain.ipo.dto.ProfileAttractivenessScore;
 import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
+import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
+import com.aipo.backend.domain.ipo.service.AttractivenessService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +25,9 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -32,12 +40,20 @@ class CalendarServiceTest {
     @Mock
     private IpoLeadManagerRepository ipoLeadManagerRepository;
 
+    @Mock
+    private UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
+
+    @Mock
+    private AttractivenessService attractivenessService;
+
     @Test
     @DisplayName("월 렌더링용 전체 날짜 셀과 선택 날짜 상세 목록을 조립한다")
     void getMonthlyCalendar_success() {
         CalendarService calendarService = spy(new CalendarService(
                 ipoStockRepository,
-                ipoLeadManagerRepository
+                ipoLeadManagerRepository,
+                userInvestmentProfileResultRepository,
+                attractivenessService
         ));
 
         Long ipoId = 1L;
@@ -52,10 +68,13 @@ class CalendarServiceTest {
                 leadManager(stock, "주관사B", 2)
         ));
         when(ipoStockRepository.findUnderwritersByStockIds(List.of(ipoId))).thenReturn(Map.of());
+        when(attractivenessService.calculateForIpo(any(AttractivenessIpoProjection.class), anyList(), isNull()))
+                .thenReturn(attractiveness(77));
         CalendarMonthResponse response = calendarService.getMonthlyCalendar(
                 2026,
                 4,
-                LocalDate.of(2026, 4, 28)
+                LocalDate.of(2026, 4, 28),
+                null
         );
 
         assertThat(response.year()).isEqualTo(2026);
@@ -73,7 +92,7 @@ class CalendarServiceTest {
         assertThat(response.selectedDateSection().companies()).hasSize(1);
         assertThat(response.selectedDateSection().companies().get(0).ipoId()).isEqualTo(ipoId);
         assertThat(response.selectedDateSection().companies().get(0).securitiesCompanyName()).isEqualTo("주관사A");
-        assertThat(response.selectedDateSection().companies().get(0).attractionScore()).isEqualByComparingTo("88");
+        assertThat(response.selectedDateSection().companies().get(0).attractionScore()).isEqualByComparingTo("77");
         assertThat(response.selectedDateSection().companies().get(0).scheduleLabel()).isEqualTo("청약 시작");
     }
 
@@ -82,7 +101,9 @@ class CalendarServiceTest {
     void getMonthlyCalendar_whenSelectedDateMissingInCurrentMonth_defaultsToToday() {
         CalendarService calendarService = spy(new CalendarService(
                 ipoStockRepository,
-                ipoLeadManagerRepository
+                ipoLeadManagerRepository,
+                userInvestmentProfileResultRepository,
+                attractivenessService
         ));
 
         IpoStock stock = ipoStock(1L, "AIPO");
@@ -91,7 +112,7 @@ class CalendarServiceTest {
         when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
         when(ipoStockRepository.findAll()).thenReturn(List.of(stock));
 
-        CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 4, null);
+        CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 4, null, null);
 
         assertThat(response.selectedDateSection().selectedDate()).isEqualTo(LocalDate.of(2026, 4, 21));
         assertThat(response.selectedDateSection().companies()).isEmpty();
@@ -102,7 +123,9 @@ class CalendarServiceTest {
     void getMonthlyCalendar_whenSelectedDateMissingOutsideCurrentMonth_defaultsToFirstScheduledDate() {
         CalendarService calendarService = spy(new CalendarService(
                 ipoStockRepository,
-                ipoLeadManagerRepository
+                ipoLeadManagerRepository,
+                userInvestmentProfileResultRepository,
+                attractivenessService
         ));
 
         IpoStock firstStock = ipoStock(1L, "AIPO");
@@ -114,8 +137,10 @@ class CalendarServiceTest {
         when(ipoStockRepository.findAll()).thenReturn(List.of(firstStock, secondStock));
         when(ipoLeadManagerRepository.findAllByStock_IdIn(List.of(1L))).thenReturn(List.of());
         when(ipoStockRepository.findUnderwritersByStockIds(List.of(1L))).thenReturn(Map.of());
+        when(attractivenessService.calculateForIpo(any(AttractivenessIpoProjection.class), anyList(), isNull()))
+                .thenReturn(attractiveness(61));
 
-        CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 5, null);
+        CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 5, null, null);
 
         assertThat(response.selectedDateSection().selectedDate()).isEqualTo(LocalDate.of(2026, 5, 10));
         assertThat(response.selectedDateSection().companies()).hasSize(1);
@@ -127,13 +152,15 @@ class CalendarServiceTest {
     void getMonthlyCalendar_whenNoSchedules_defaultsToFirstDayOfMonth() {
         CalendarService calendarService = spy(new CalendarService(
                 ipoStockRepository,
-                ipoLeadManagerRepository
+                ipoLeadManagerRepository,
+                userInvestmentProfileResultRepository,
+                attractivenessService
         ));
 
         when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
         when(ipoStockRepository.findAll()).thenReturn(List.of());
 
-        CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 6, null);
+        CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 6, null, null);
 
         assertThat(response.calendarCells()).hasSize(35);
         assertThat(response.selectedDateSection().selectedDate()).isEqualTo(LocalDate.of(2026, 6, 1));
@@ -145,12 +172,19 @@ class CalendarServiceTest {
     void getMonthlyCalendar_whenSelectedDateOutOfMonth_throwIllegalArgumentException() {
         CalendarService calendarService = new CalendarService(
                 ipoStockRepository,
-                ipoLeadManagerRepository
+                ipoLeadManagerRepository,
+                userInvestmentProfileResultRepository,
+                attractivenessService
         );
 
-        assertThatThrownBy(() -> calendarService.getMonthlyCalendar(2026, 4, LocalDate.of(2026, 5, 1)))
+        assertThatThrownBy(() -> calendarService.getMonthlyCalendar(2026, 4, LocalDate.of(2026, 5, 1), null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("selectedDate must be within the requested year and month.");
+    }
+
+    private AttractivenessResponse attractiveness(int score) {
+        ProfileAttractivenessScore selected = new ProfileAttractivenessScore(score, "grade", "reason");
+        return new AttractivenessResponse(selected, null, selected, selected, selected, selected, null, null);
     }
 
     private IpoStock ipoStock(Long id, String companyName) {

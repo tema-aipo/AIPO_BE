@@ -5,13 +5,18 @@ import com.aipo.backend.domain.calendar.dto.CalendarCellScheduleItem;
 import com.aipo.backend.domain.calendar.dto.CalendarMonthResponse;
 import com.aipo.backend.domain.calendar.dto.SelectedDateCompanyItem;
 import com.aipo.backend.domain.calendar.dto.SelectedDateSection;
+import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
+import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
 import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.ScheduleType;
+import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
+import com.aipo.backend.domain.ipo.service.AttractivenessService;
 import com.aipo.backend.domain.ipo.service.IpoStockViewMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +32,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,8 +42,10 @@ public class CalendarService {
 
     private final IpoStockRepository ipoStockRepository;
     private final IpoLeadManagerRepository ipoLeadManagerRepository;
+    private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
+    private final AttractivenessService attractivenessService;
 
-    public CalendarMonthResponse getMonthlyCalendar(int year, int month, LocalDate selectedDate) {
+    public CalendarMonthResponse getMonthlyCalendar(int year, int month, LocalDate selectedDate, Long userId) {
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDate monthStart = yearMonth.atDay(1);
         LocalDate monthEnd = yearMonth.atEndOfMonth();
@@ -54,7 +62,11 @@ public class CalendarService {
                 year,
                 month,
                 buildCalendarCells(yearMonth, schedulesByDate),
-                buildSelectedDateSection(resolvedSelectedDate, schedulesByDate.getOrDefault(resolvedSelectedDate, Collections.emptyList()))
+                buildSelectedDateSection(
+                        resolvedSelectedDate,
+                        schedulesByDate.getOrDefault(resolvedSelectedDate, Collections.emptyList()),
+                        userId
+                )
         );
     }
 
@@ -88,18 +100,23 @@ public class CalendarService {
         return cells;
     }
 
-    private SelectedDateSection buildSelectedDateSection(LocalDate selectedDate, List<CalendarSchedule> schedules) {
+    private SelectedDateSection buildSelectedDateSection(
+            LocalDate selectedDate,
+            List<CalendarSchedule> schedules,
+            Long userId
+    ) {
         List<Long> stockIds = schedules.stream()
                 .map(schedule -> schedule.stock().getId())
                 .distinct()
                 .toList();
         Map<Long, String> leadManagerMap = buildLeadManagerMap(stockIds);
+        Map<Long, Integer> scoreByStockId = calculateSelectedScores(schedules, currentProfileType(userId));
 
         List<SelectedDateCompanyItem> companies = schedules.stream()
                 .sorted(Comparator
                         .comparing((CalendarSchedule schedule) -> schedule.stock().getId())
                         .thenComparing(CalendarSchedule::scheduleType))
-                .map(schedule -> toSelectedDateCompanyItem(schedule, leadManagerMap))
+                .map(schedule -> toSelectedDateCompanyItem(schedule, leadManagerMap, scoreByStockId))
                 .toList();
 
         return new SelectedDateSection(selectedDate, companies);
@@ -116,7 +133,8 @@ public class CalendarService {
 
     private SelectedDateCompanyItem toSelectedDateCompanyItem(
             CalendarSchedule schedule,
-            Map<Long, String> leadManagerMap
+            Map<Long, String> leadManagerMap,
+            Map<Long, Integer> scoreByStockId
     ) {
         Long stockId = schedule.stock().getId();
 
@@ -124,7 +142,7 @@ public class CalendarService {
                 stockId,
                 IpoStockViewMapper.displayCompanyName(schedule.stock()),
                 leadManagerMap.getOrDefault(stockId, "-"),
-                toAttractionScore(schedule.stock().getAttractScore()),
+                toAttractionScore(scoreByStockId.get(stockId)),
                 schedule.scheduleType().name(),
                 getScheduleLabel(schedule.scheduleType())
         );
@@ -199,8 +217,88 @@ public class CalendarService {
         return value != null && !value.isBlank() && !"-".equals(value.trim());
     }
 
-    private BigDecimal toAttractionScore(Float attractScore) {
+    private BigDecimal toAttractionScore(Integer attractScore) {
         return attractScore == null ? null : BigDecimal.valueOf(attractScore);
+    }
+
+    private InvestmentProfileType currentProfileType(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return userInvestmentProfileResultRepository
+                .findTopByUserIdAndCurrentTrueOrderByCreatedAtDescIdDesc(userId)
+                .map(result -> result.getProfileType())
+                .orElse(null);
+    }
+
+    private Map<Long, Integer> calculateSelectedScores(
+            List<CalendarSchedule> schedules,
+            InvestmentProfileType currentProfileType
+    ) {
+        if (schedules.isEmpty()) {
+            return Map.of();
+        }
+
+        List<IpoStock> selectedStocks = schedules.stream()
+                .map(CalendarSchedule::stock)
+                .collect(Collectors.toMap(
+                        IpoStock::getId,
+                        Function.identity(),
+                        (existing, replacement) -> existing
+                ))
+                .values()
+                .stream()
+                .toList();
+
+        List<AttractivenessIpoProjection> allIpos;
+        try {
+            allIpos = ipoStockRepository.findAllForAttractiveness();
+        } catch (DataAccessException exception) {
+            allIpos = selectedStocks.stream()
+                    .map(this::fallbackAttractivenessProjection)
+                    .toList();
+        }
+
+        if (allIpos == null || allIpos.isEmpty()) {
+            allIpos = selectedStocks.stream()
+                    .map(this::fallbackAttractivenessProjection)
+                    .toList();
+        }
+
+        Map<Long, AttractivenessIpoProjection> projectionByStockId = allIpos.stream()
+                .collect(Collectors.toMap(
+                        AttractivenessIpoProjection::getStockId,
+                        Function.identity(),
+                        (existing, replacement) -> existing
+                ));
+        List<AttractivenessIpoProjection> finalAllIpos = allIpos;
+
+        return selectedStocks.stream()
+                .collect(Collectors.toMap(
+                        IpoStock::getId,
+                        stock -> {
+                            AttractivenessIpoProjection target = projectionByStockId.getOrDefault(
+                                    stock.getId(),
+                                    fallbackAttractivenessProjection(stock)
+                            );
+                            return attractivenessService
+                                    .calculateForIpo(target, finalAllIpos, currentProfileType)
+                                    .selected()
+                                    .score();
+                        },
+                        (existing, replacement) -> existing
+                ));
+    }
+
+    private AttractivenessIpoProjection fallbackAttractivenessProjection(IpoStock stock) {
+        return new SimpleAttractivenessIpoProjection(
+                stock.getId(),
+                IpoStockViewMapper.displayCompanyName(stock),
+                null,
+                null,
+                null,
+                null
+        );
     }
 
     private List<CalendarSchedule> buildSchedulesFromIpoMain(LocalDate monthStart, LocalDate monthEnd) {
@@ -256,5 +354,45 @@ public class CalendarService {
             ScheduleType scheduleType,
             LocalDate scheduleDate
     ) {
+    }
+
+    private record SimpleAttractivenessIpoProjection(
+            Long stockId,
+            String corpName,
+            String competitionRatio,
+            String instCommitmentRatio,
+            String floatingStockRatio,
+            String lockupTotalRatio
+    ) implements AttractivenessIpoProjection {
+
+        @Override
+        public Long getStockId() {
+            return stockId;
+        }
+
+        @Override
+        public String getCorpName() {
+            return corpName;
+        }
+
+        @Override
+        public String getCompetitionRatio() {
+            return competitionRatio;
+        }
+
+        @Override
+        public String getInstCommitmentRatio() {
+            return instCommitmentRatio;
+        }
+
+        @Override
+        public String getFloatingStockRatio() {
+            return floatingStockRatio;
+        }
+
+        @Override
+        public String getLockupTotalRatio() {
+            return lockupTotalRatio;
+        }
     }
 }

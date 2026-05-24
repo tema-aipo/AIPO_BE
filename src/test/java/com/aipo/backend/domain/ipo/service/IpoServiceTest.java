@@ -167,7 +167,7 @@ class IpoServiceTest {
         assertThat(response.summary().subscriptionPeriod().startDate()).isEqualTo(LocalDate.of(2026, 4, 28));
         assertThat(response.summary().subscriptionPeriod().endDate()).isEqualTo(LocalDate.of(2026, 4, 29));
         assertThat(response.summary().isFavorite()).isTrue();
-        assertThat(response.attraction().totalScore()).isEqualByComparingTo("50");
+        assertThat(response.attraction().totalScore()).isEqualByComparingTo("0");
         assertThat(response.attractiveness().selectedProfile()).isNull();
         assertThat(response.attractiveness().selected().score()).isEqualTo(response.attractiveness().defaultScore().score());
         assertThat(response.attraction().reasons()).hasSize(2);
@@ -245,7 +245,7 @@ class IpoServiceTest {
 
         assertThat(response.summary().leadManagers()).isEmpty();
         assertThat(response.summary().isFavorite()).isFalse();
-        assertThat(response.attraction().totalScore()).isEqualByComparingTo("50");
+        assertThat(response.attraction().totalScore()).isEqualByComparingTo("0");
         assertThat(response.attraction().reasons()).isEmpty();
         assertThat(response.demandForecast().institutionalCompetitionRate()).isNull();
         assertThat(response.subscriptionCompetition().defaultTab()).isNull();
@@ -331,8 +331,8 @@ class IpoServiceTest {
 
         IpoDetailResponse response = ipoService.getIpoDetail(ipoId, null);
 
-        assertThat(response.attraction().totalScore()).isEqualByComparingTo("50");
-        assertThat(response.attractiveness().defaultScore().score()).isEqualTo(50);
+        assertThat(response.attraction().totalScore()).isEqualByComparingTo("0");
+        assertThat(response.attractiveness().defaultScore().score()).isEqualTo(0);
     }
 
     @Test

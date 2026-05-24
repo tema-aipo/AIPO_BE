@@ -67,6 +67,24 @@ class AttractivenessServiceTest {
         assertThat(response.notice()).contains("스팩주");
     }
 
+    @Test
+    void calculateForIpo_withStableProfile_usesAbsoluteWeightedScores() {
+        AttractivenessIpoProjection target = ipo(1L, "AIPO", "0", "0", "38.48", "61.52");
+
+        AttractivenessResponse response = attractivenessService.calculateForIpo(
+                target,
+                List.of(target),
+                InvestmentProfileType.STABLE
+        );
+
+        assertThat(response.factorScores().competitionScore()).isZero();
+        assertThat(response.factorScores().instCommitmentScore()).isZero();
+        assertThat(response.factorScores().floatingStockScore()).isEqualTo(62);
+        assertThat(response.factorScores().lockupScore()).isEqualTo(62);
+        assertThat(response.selectedProfile()).isEqualTo("conservative");
+        assertThat(response.selected().score()).isEqualTo(29);
+    }
+
     private AttractivenessIpoProjection ipo(
             Long stockId,
             String corpName,

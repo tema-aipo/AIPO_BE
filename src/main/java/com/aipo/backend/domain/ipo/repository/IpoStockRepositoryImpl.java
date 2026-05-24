@@ -92,7 +92,9 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     m.refund_date,
                     date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                 from ipo_main m
-                order by coalesce(m.recent_growth_score, 0) desc,
+                order by nullif(m.listing_date, '0000-00-00') is null asc,
+                    nullif(m.listing_date, '0000-00-00') desc,
+                    coalesce(m.recent_growth_score, 0) desc,
                     coalesce(m.attract_score, 0) desc,
                     m.created_at desc
                 """)
@@ -146,7 +148,9 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                         m.refund_date,
                         date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                     from ipo_main m
-                    order by coalesce(m.recent_growth_score, 0) desc,
+                    order by coalesce(nullif(m.subscription_start_date, '0000-00-00'), nullif(m.subscription_end_date, '0000-00-00')) is null asc,
+                        coalesce(nullif(m.subscription_start_date, '0000-00-00'), nullif(m.subscription_end_date, '0000-00-00')) asc,
+                        coalesce(m.recent_growth_score, 0) desc,
                         coalesce(m.attract_score, 0) desc,
                         m.created_at desc
                     """)

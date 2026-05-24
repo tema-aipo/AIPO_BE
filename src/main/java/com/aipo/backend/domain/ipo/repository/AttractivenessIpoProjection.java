@@ -8,8 +8,6 @@ public interface AttractivenessIpoProjection {
 
     String getCompetitionRatio();
 
-    String getSubscriptionRatio();
-
     String getInstCommitmentRatio();
 
     String getFloatingStockRatio();

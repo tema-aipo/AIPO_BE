@@ -173,7 +173,6 @@ public class IpoService {
                 null,
                 null,
                 null,
-                null,
                 null
         );
     }
@@ -306,7 +305,6 @@ public class IpoService {
             Long stockId,
             String corpName,
             String competitionRatio,
-            String subscriptionRatio,
             String instCommitmentRatio,
             String floatingStockRatio,
             String lockupTotalRatio
@@ -325,11 +323,6 @@ public class IpoService {
         @Override
         public String getCompetitionRatio() {
             return competitionRatio;
-        }
-
-        @Override
-        public String getSubscriptionRatio() {
-            return subscriptionRatio;
         }
 
         @Override

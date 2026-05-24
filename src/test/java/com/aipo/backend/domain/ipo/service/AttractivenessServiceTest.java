@@ -35,11 +35,11 @@ class AttractivenessServiceTest {
 
     @Test
     void calculateForIpo_withoutProfile_selectsDefaultBalancedScore() {
-        AttractivenessIpoProjection target = ipo(1L, "올릭스", "900", "800", "30", "25", "60");
+        AttractivenessIpoProjection target = ipo(1L, "올릭스", "900", "30", "25", "60");
         List<AttractivenessIpoProjection> allIpos = List.of(
-                ipo(1L, "올릭스", "900", "800", "30", "25", "60"),
-                ipo(2L, "비교기업", "100", "150", "10", "55", "20"),
-                ipo(3L, "비교스팩", "500", "400", "20", "35", "40")
+                ipo(1L, "올릭스", "900", "30", "25", "60"),
+                ipo(2L, "비교기업", "100", "10", "55", "20"),
+                ipo(3L, "비교스팩", "500", "20", "35", "40")
         );
 
         AttractivenessResponse response = attractivenessService.calculateForIpo(target, allIpos, null);
@@ -47,13 +47,14 @@ class AttractivenessServiceTest {
         assertThat(response.selectedProfile()).isNull();
         assertThat(response.selected()).isEqualTo(response.defaultScore());
         assertThat(response.balanced().score()).isEqualTo(response.defaultScore().score());
+        assertThat(response.factorScores().subscriptionScore()).isNull();
         assertThat(response.factorScores().floatingStockScore()).isGreaterThan(50);
     }
 
     @Test
     void calculateForIpo_withStableProfile_selectsConservativeScoreAndSpacNotice() {
-        AttractivenessIpoProjection target = ipo(1L, "AIPO스팩", "900", "800", "30", "25", "60");
-        List<AttractivenessIpoProjection> allIpos = List.of(target, ipo(2L, "비교기업", "100", "150", "10", "55", "20"));
+        AttractivenessIpoProjection target = ipo(1L, "AIPO스팩", "900", "30", "25", "60");
+        List<AttractivenessIpoProjection> allIpos = List.of(target, ipo(2L, "비교기업", "100", "10", "55", "20"));
 
         AttractivenessResponse response = attractivenessService.calculateForIpo(
                 target,
@@ -70,7 +71,6 @@ class AttractivenessServiceTest {
             Long stockId,
             String corpName,
             String competitionRatio,
-            String subscriptionRatio,
             String instCommitmentRatio,
             String floatingStockRatio,
             String lockupTotalRatio
@@ -79,7 +79,6 @@ class AttractivenessServiceTest {
                 stockId,
                 corpName,
                 competitionRatio,
-                subscriptionRatio,
                 instCommitmentRatio,
                 floatingStockRatio,
                 lockupTotalRatio
@@ -90,7 +89,6 @@ class AttractivenessServiceTest {
             Long stockId,
             String corpName,
             String competitionRatio,
-            String subscriptionRatio,
             String instCommitmentRatio,
             String floatingStockRatio,
             String lockupTotalRatio
@@ -109,11 +107,6 @@ class AttractivenessServiceTest {
         @Override
         public String getCompetitionRatio() {
             return competitionRatio;
-        }
-
-        @Override
-        public String getSubscriptionRatio() {
-            return subscriptionRatio;
         }
 
         @Override

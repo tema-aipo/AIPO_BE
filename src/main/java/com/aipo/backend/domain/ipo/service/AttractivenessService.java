@@ -20,9 +20,12 @@ public class AttractivenessService {
     private static final String PROFILE_AGGRESSIVE = "aggressive";
     private static final String PROFILE_BALANCED = "balanced";
     private static final String PROFILE_CONSERVATIVE = "conservative";
+    private static final double AGGRESSIVE_REMAINING_WEIGHT = 0.70;
+    private static final double BALANCED_REMAINING_WEIGHT = 0.85;
+    private static final double CONSERVATIVE_REMAINING_WEIGHT = 0.95;
 
-    private static final String DEFAULT_REASON = "기관 수요예측 경쟁률, 일반 청약 경쟁률, 의무보유확약, 유통가능물량, 보호예수 비율을 종합하여 산출한 기본 매력지수입니다.";
-    private static final String AGGRESSIVE_REASON = "기관 수요예측 경쟁률과 일반 청약 경쟁률을 중심으로 단기 수급 기대를 반영한 결과입니다.";
+    private static final String DEFAULT_REASON = "기관 수요예측 경쟁률, 의무보유확약, 유통가능물량, 보호예수 비율을 종합하여 산출한 기본 매력지수입니다.";
+    private static final String AGGRESSIVE_REASON = "기관 수요예측 경쟁률을 중심으로 단기 수급 기대를 반영한 결과입니다.";
     private static final String BALANCED_REASON = "기관 수요와 수급 안정성을 균형 있게 반영한 결과입니다.";
     private static final String CONSERVATIVE_REASON = "의무보유확약 비율, 유통가능물량 비율, 보호예수 비율을 중심으로 안정성을 평가한 결과입니다.";
     private static final String SPAC_NOTICE = "이 종목은 스팩주로, 일반 기업 IPO와 구조가 다를 수 있습니다. 의무보유확약 등 일부 지표는 일반 IPO와 해석이 다를 수 있으므로 참고용으로 확인하세요.";
@@ -38,27 +41,24 @@ public class AttractivenessService {
 
         int aggressiveScore = calculateWeightedScore(
                 factorScores,
-                0.35,
-                0.30,
-                0.15,
-                0.15,
-                0.05
+                0.35 / AGGRESSIVE_REMAINING_WEIGHT,
+                0.15 / AGGRESSIVE_REMAINING_WEIGHT,
+                0.15 / AGGRESSIVE_REMAINING_WEIGHT,
+                0.05 / AGGRESSIVE_REMAINING_WEIGHT
         );
         int balancedScore = calculateWeightedScore(
                 factorScores,
-                0.30,
-                0.15,
-                0.25,
-                0.25,
-                0.05
+                0.30 / BALANCED_REMAINING_WEIGHT,
+                0.25 / BALANCED_REMAINING_WEIGHT,
+                0.25 / BALANCED_REMAINING_WEIGHT,
+                0.05 / BALANCED_REMAINING_WEIGHT
         );
         int conservativeScore = calculateWeightedScore(
                 factorScores,
-                0.15,
-                0.05,
-                0.35,
-                0.30,
-                0.15
+                0.15 / CONSERVATIVE_REMAINING_WEIGHT,
+                0.35 / CONSERVATIVE_REMAINING_WEIGHT,
+                0.30 / CONSERVATIVE_REMAINING_WEIGHT,
+                0.15 / CONSERVATIVE_REMAINING_WEIGHT
         );
 
         ProfileAttractivenessScore defaultScore =
@@ -100,11 +100,7 @@ public class AttractivenessService {
                         allIpos.stream().map(ipo -> log1p(parseNumber(ipo.getCompetitionRatio()))).toList(),
                         false
                 ),
-                calculatePercentileScore(
-                        log1p(parseNumber(targetIpo.getSubscriptionRatio())),
-                        allIpos.stream().map(ipo -> log1p(parseNumber(ipo.getSubscriptionRatio()))).toList(),
-                        false
-                ),
+                null,
                 calculatePercentileScore(
                         parseNumber(targetIpo.getInstCommitmentRatio()),
                         allIpos.stream().map(ipo -> parseNumber(ipo.getInstCommitmentRatio())).toList(),
@@ -222,14 +218,12 @@ public class AttractivenessService {
     private int calculateWeightedScore(
             FactorScoresResponse factorScores,
             double competitionWeight,
-            double subscriptionWeight,
             double instCommitmentWeight,
             double floatingStockWeight,
             double lockupWeight
     ) {
         return (int) Math.round(
                 factorScores.competitionScore() * competitionWeight
-                        + factorScores.subscriptionScore() * subscriptionWeight
                         + factorScores.instCommitmentScore() * instCommitmentWeight
                         + factorScores.floatingStockScore() * floatingStockWeight
                         + factorScores.lockupScore() * lockupWeight

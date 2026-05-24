@@ -8,6 +8,7 @@ import com.aipo.backend.domain.ipo.repository.*;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -140,7 +141,12 @@ public class IpoService {
     }
 
     private AttractivenessResponse buildAttractiveness(IpoDetailProjection ipo, Long userId) {
-        List<AttractivenessIpoProjection> allIpos = ipoStockRepository.findAllForAttractiveness();
+        List<AttractivenessIpoProjection> allIpos;
+        try {
+            allIpos = ipoStockRepository.findAllForAttractiveness();
+        } catch (DataAccessException exception) {
+            allIpos = List.of(toAttractivenessProjection(ipo));
+        }
         if (allIpos == null || allIpos.isEmpty()) {
             allIpos = List.of(toAttractivenessProjection(ipo));
         }

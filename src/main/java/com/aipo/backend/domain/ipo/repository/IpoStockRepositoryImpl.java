@@ -122,41 +122,13 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     m.refund_date,
                     date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                 from ipo_main m
-                where nullif(m.subscription_start_date, '0000-00-00') >= :today
-                    or nullif(m.subscription_end_date, '0000-00-00') >= :today
-                order by coalesce(nullif(m.subscription_start_date, '0000-00-00'), nullif(m.subscription_end_date, '0000-00-00')) asc,
+                order by coalesce(nullif(m.subscription_start_date, '0000-00-00'), nullif(m.subscription_end_date, '0000-00-00')) is null asc,
+                    coalesce(nullif(m.subscription_start_date, '0000-00-00'), nullif(m.subscription_end_date, '0000-00-00')) asc,
                     coalesce(m.recent_growth_score, 0) desc,
-                    coalesce(m.attract_score, 0) desc
+                    coalesce(m.attract_score, 0) desc,
+                    m.created_at desc
                 """)
-                .setParameter("today", LocalDate.now())
-                .setMaxResults(10)
                 .getResultList();
-
-        if (rows.isEmpty()) {
-            rows = em.createNativeQuery("""
-                    select
-                        m.stock_id,
-                        m.company_name,
-                        m.stock_name,
-                        m.corp_name,
-                        m.recent_growth_score,
-                        m.attract_score,
-                        date_format(nullif(m.subscription_start_date, '0000-00-00'), '%Y-%m-%d') as subscription_start_date,
-                        date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
-                        m.subscription_date,
-                        m.demand_forecast_date,
-                        m.refund_date,
-                        date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
-                    from ipo_main m
-                    order by coalesce(nullif(m.subscription_start_date, '0000-00-00'), nullif(m.subscription_end_date, '0000-00-00')) is null asc,
-                        coalesce(nullif(m.subscription_start_date, '0000-00-00'), nullif(m.subscription_end_date, '0000-00-00')) asc,
-                        coalesce(m.recent_growth_score, 0) desc,
-                        coalesce(m.attract_score, 0) desc,
-                        m.created_at desc
-                    """)
-                    .setMaxResults(5)
-                    .getResultList();
-        }
 
         return rows.stream()
                 .map(row -> toAttractivenessItem((Object[]) row))

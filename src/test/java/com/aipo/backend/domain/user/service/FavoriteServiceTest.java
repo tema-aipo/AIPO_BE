@@ -1,11 +1,13 @@
 package com.aipo.backend.domain.user.service;
 
+import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.UserFavoriteStock;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.repository.UserFavoriteStockRepository;
+import com.aipo.backend.domain.ipo.service.AttractivenessService;
 import com.aipo.backend.domain.user.dto.FavoriteStockResponse;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -45,6 +48,12 @@ class FavoriteServiceTest {
 
     @Mock
     private IpoScheduleRepository ipoScheduleRepository;
+
+    @Mock
+    private UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
+
+    @Spy
+    private AttractivenessService attractivenessService = new AttractivenessService();
 
     @InjectMocks
     private FavoriteService favoriteService;

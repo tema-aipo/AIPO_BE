@@ -2,6 +2,7 @@ package com.aipo.backend.domain.home.controller;
 
 import com.aipo.backend.domain.home.dto.HomeResponse;
 import com.aipo.backend.domain.home.service.HomeService;
+import com.aipo.backend.global.security.service.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController // JSON 응답을 반환하는 REST API 컨트롤러
@@ -29,10 +31,12 @@ public class HomeController {
     public ResponseEntity<HomeResponse> getHome(
             // tab이 없으면 기본값 recentGrowth 사용
             @Parameter(description = "매력지수 탭. recentGrowth, subscriptionUpcoming, favorite 지원", example = "recentGrowth")
-            @RequestParam(required = false, defaultValue = "recentGrowth") String tab
+            @RequestParam(required = false, defaultValue = "recentGrowth") String tab,
+            @AuthenticationPrincipal CustomUserDetails principal
     ) {
         // 서비스에 tab을 넘겨서 홈 데이터 생성
-        HomeResponse response = homeService.getHome(tab);
+        Long userId = principal != null ? principal.getUserId() : null;
+        HomeResponse response = homeService.getHome(tab, userId);
 
         // 200 OK + 응답 바디 반환
         return ResponseEntity.ok(response);

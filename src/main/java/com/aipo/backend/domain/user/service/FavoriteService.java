@@ -1,19 +1,24 @@
 package com.aipo.backend.domain.user.service;
 
 import com.aipo.backend.domain.ipo.dto.DateRange;
+import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
+import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
 import com.aipo.backend.domain.ipo.entity.*;
 import com.aipo.backend.domain.ipo.repository.*;
+import com.aipo.backend.domain.ipo.service.AttractivenessService;
 import com.aipo.backend.domain.ipo.service.IpoStockViewMapper;
 import com.aipo.backend.domain.user.dto.FavoriteStockResponse;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,6 +29,8 @@ public class FavoriteService {
     private final IpoStockRepository ipoStockRepository;
     private final UserFavoriteStockRepository userFavoriteStockRepository;
     private final IpoLeadManagerRepository ipoLeadManagerRepository;
+    private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
+    private final AttractivenessService attractivenessService;
     private final IpoScheduleRepository ipoScheduleRepository; // 추가
 
     public List<FavoriteStockResponse> getFavorites(Long userId) {
@@ -51,9 +58,19 @@ public class FavoriteService {
                         IpoSchedule::getScheduleDate,
                         (a, b) -> a
                 ));
+        Map<Long, Integer> scoreByStockId = calculateFavoriteScores(
+                favorites,
+                currentProfileType(userId)
+        );
 
         return favorites.stream()
-                .map(favoriteStock -> toResponse(favoriteStock, managersByStockId, underwritersByStockId, refundDateByStockId))
+                .map(favoriteStock -> toResponse(
+                        favoriteStock,
+                        managersByStockId,
+                        underwritersByStockId,
+                        refundDateByStockId,
+                        scoreByStockId
+                ))
                 .toList();
     }
 
@@ -61,13 +78,15 @@ public class FavoriteService {
             UserFavoriteStock favoriteStock,
             Map<Long, List<IpoLeadManager>> managersByStockId,
             Map<Long, String> underwritersByStockId,
-            Map<Long, java.time.LocalDate> refundDateByStockId
+            Map<Long, java.time.LocalDate> refundDateByStockId,
+            Map<Long, Integer> scoreByStockId
     ) {
         IpoStock stock = favoriteStock.getStock();
         Long stockId = stock.getId();
 
         // 1. Attraction Score
-        Integer score = stock.getAttractScore() == null ? null : Math.round(stock.getAttractScore());
+        Integer fallbackScore = stock.getAttractScore() == null ? null : Math.round(stock.getAttractScore());
+        Integer score = scoreByStockId.getOrDefault(stockId, fallbackScore);
 
         // 2. Lead Manager
         List<IpoLeadManager> stockManagers = managersByStockId.getOrDefault(stockId, Collections.emptyList());
@@ -128,6 +147,69 @@ public class FavoriteService {
         );
     }
 
+    private InvestmentProfileType currentProfileType(Long userId) {
+        return userInvestmentProfileResultRepository
+                .findTopByUserIdAndCurrentTrueOrderByCreatedAtDescIdDesc(userId)
+                .map(result -> result.getProfileType())
+                .orElse(null);
+    }
+
+    private Map<Long, Integer> calculateFavoriteScores(
+            List<UserFavoriteStock> favorites,
+            InvestmentProfileType currentProfileType
+    ) {
+        List<AttractivenessIpoProjection> allIpos;
+        try {
+            allIpos = ipoStockRepository.findAllForAttractiveness();
+        } catch (DataAccessException exception) {
+            allIpos = favorites.stream()
+                    .map(favorite -> fallbackAttractivenessProjection(favorite.getStock()))
+                    .toList();
+        }
+
+        if (allIpos == null || allIpos.isEmpty()) {
+            allIpos = favorites.stream()
+                    .map(favorite -> fallbackAttractivenessProjection(favorite.getStock()))
+                    .toList();
+        }
+
+        Map<Long, AttractivenessIpoProjection> projectionByStockId = allIpos.stream()
+                .collect(Collectors.toMap(
+                        AttractivenessIpoProjection::getStockId,
+                        Function.identity(),
+                        (existing, replacement) -> existing
+                ));
+        List<AttractivenessIpoProjection> finalAllIpos = allIpos;
+
+        return favorites.stream()
+                .collect(Collectors.toMap(
+                        favorite -> favorite.getStock().getId(),
+                        favorite -> {
+                            IpoStock stock = favorite.getStock();
+                            AttractivenessIpoProjection target = projectionByStockId.getOrDefault(
+                                    stock.getId(),
+                                    fallbackAttractivenessProjection(stock)
+                            );
+                            return attractivenessService
+                                    .calculateForIpo(target, finalAllIpos, currentProfileType)
+                                    .selected()
+                                    .score();
+                        },
+                        (existing, replacement) -> existing
+                ));
+    }
+
+    private AttractivenessIpoProjection fallbackAttractivenessProjection(IpoStock stock) {
+        return new SimpleAttractivenessIpoProjection(
+                stock.getId(),
+                IpoStockViewMapper.displayCompanyName(stock),
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
     private String firstUnderwriter(String underwriter) {
         if (underwriter == null || underwriter.isBlank()) {
             return "-";
@@ -164,5 +246,45 @@ public class FavoriteService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FAVORITE_STOCK_NOT_FOUND));
 
         userFavoriteStockRepository.delete(favoriteStock);
+    }
+
+    private record SimpleAttractivenessIpoProjection(
+            Long stockId,
+            String corpName,
+            String competitionRatio,
+            String instCommitmentRatio,
+            String floatingStockRatio,
+            String lockupTotalRatio
+    ) implements AttractivenessIpoProjection {
+
+        @Override
+        public Long getStockId() {
+            return stockId;
+        }
+
+        @Override
+        public String getCorpName() {
+            return corpName;
+        }
+
+        @Override
+        public String getCompetitionRatio() {
+            return competitionRatio;
+        }
+
+        @Override
+        public String getInstCommitmentRatio() {
+            return instCommitmentRatio;
+        }
+
+        @Override
+        public String getFloatingStockRatio() {
+            return floatingStockRatio;
+        }
+
+        @Override
+        public String getLockupTotalRatio() {
+            return lockupTotalRatio;
+        }
     }
 }

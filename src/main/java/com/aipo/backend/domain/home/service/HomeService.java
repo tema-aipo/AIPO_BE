@@ -2,15 +2,23 @@ package com.aipo.backend.domain.home.service;
 
 import com.aipo.backend.domain.home.dto.*;
 import com.aipo.backend.domain.home.type.HomeTab;
+import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
+import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
 import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
+import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
+import com.aipo.backend.domain.ipo.service.AttractivenessService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -19,9 +27,11 @@ import java.util.stream.IntStream;
 public class HomeService {
 
     private final IpoStockRepository ipoStockRepository;
+    private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
+    private final AttractivenessService attractivenessService;
     private final IpoLeadManagerRepository ipoLeadManagerRepository; // 추가
 
-    public HomeResponse getHome(String tabValue) {
+    public HomeResponse getHome(String tabValue, Long userId) {
         // 요청 파라미터 문자열을 enum으로 변환
         HomeTab tab = HomeTab.from(tabValue);
 
@@ -35,7 +45,7 @@ public class HomeService {
 
         // 탭에 따라 매력지수 리스트 조회
         List<AttractivenessItem> attractivenessItems =
-                getAttractivenessItems(tab);
+                getAttractivenessItems(tab, userId);
 
         // 홈 화면 전체 응답 조합
         return new HomeResponse(
@@ -45,7 +55,7 @@ public class HomeService {
         );
     }
 
-    private List<AttractivenessItem> getAttractivenessItems(HomeTab tab) {
+    private List<AttractivenessItem> getAttractivenessItems(HomeTab tab, Long userId) {
         // 선택된 탭에 따라 다른 조회 메서드 호출
         List<AttractivenessItem> items = switch (tab) {
             case RECENT_GROWTH -> ipoStockRepository.findAttractivenessByRecentGrowth();
@@ -53,6 +63,7 @@ public class HomeService {
             case FAVORITE -> ipoStockRepository.findAttractivenessByFavorite();
         };
 
+        items = sortAndLimitItems(tab, items);
         if (items.isEmpty()) return items;
 
         // 배치 조회: 종목 ID 목록으로 주관사 한 번에 로드
@@ -73,11 +84,13 @@ public class HomeService {
                 .forEach((stockId, underwriter) ->
                         leadManagerMap.putIfAbsent(stockId, firstUnderwriter(underwriter)));
 
+        Map<Long, Integer> scoreByStockId = calculateHomeScores(items, currentProfileType(userId));
+
         return items.stream()
                 .map(item -> new AttractivenessItem(
                         item.ipoId(),
                         item.name(),
-                        item.score(),
+                        scoreByStockId.getOrDefault(item.ipoId(), item.score()),
                         item.subscriptionStartDate(),
                         item.subscriptionEndDate(),
                         leadManagerMap.getOrDefault(item.ipoId(), "-"),
@@ -86,6 +99,105 @@ public class HomeService {
                         item.listingDate()
                 ))
                 .toList();
+    }
+
+    private List<AttractivenessItem> sortAndLimitItems(HomeTab tab, List<AttractivenessItem> items) {
+        return switch (tab) {
+            case RECENT_GROWTH -> items.stream()
+                    .sorted(Comparator
+                            .comparing(AttractivenessItem::listingDate, Comparator.nullsLast(Comparator.reverseOrder()))
+                            .thenComparing(AttractivenessItem::ipoId))
+                    .limit(10)
+                    .toList();
+            case SUBSCRIPTION_UPCOMING -> {
+                LocalDate today = LocalDate.now();
+                List<AttractivenessItem> upcoming = items.stream()
+                        .filter(item -> {
+                            LocalDate date = subscriptionSortDate(item);
+                            return date != null && !date.isBefore(today);
+                        })
+                        .sorted(Comparator
+                                .comparing(this::subscriptionSortDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                                .thenComparing(AttractivenessItem::ipoId))
+                        .limit(10)
+                        .toList();
+                if (!upcoming.isEmpty()) {
+                    yield upcoming;
+                }
+                yield items.stream()
+                        .sorted(Comparator
+                                .comparing(this::subscriptionSortDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                                .thenComparing(AttractivenessItem::ipoId))
+                        .limit(5)
+                        .toList();
+            }
+            case FAVORITE -> items;
+        };
+    }
+
+    private LocalDate subscriptionSortDate(AttractivenessItem item) {
+        if (item.subscriptionStartDate() != null) {
+            return item.subscriptionStartDate();
+        }
+        return item.subscriptionEndDate();
+    }
+
+    private InvestmentProfileType currentProfileType(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return userInvestmentProfileResultRepository
+                .findTopByUserIdAndCurrentTrueOrderByCreatedAtDescIdDesc(userId)
+                .map(result -> result.getProfileType())
+                .orElse(null);
+    }
+
+    private Map<Long, Integer> calculateHomeScores(
+            List<AttractivenessItem> items,
+            InvestmentProfileType currentProfileType
+    ) {
+        List<AttractivenessIpoProjection> allIpos;
+        try {
+            allIpos = ipoStockRepository.findAllForAttractiveness();
+        } catch (DataAccessException exception) {
+            allIpos = items.stream()
+                    .map(this::fallbackAttractivenessProjection)
+                    .toList();
+        }
+
+        if (allIpos == null || allIpos.isEmpty()) {
+            allIpos = items.stream()
+                    .map(this::fallbackAttractivenessProjection)
+                    .toList();
+        }
+
+        Map<Long, AttractivenessIpoProjection> projectionByStockId = allIpos.stream()
+                .collect(Collectors.toMap(
+                        AttractivenessIpoProjection::getStockId,
+                        Function.identity(),
+                        (existing, replacement) -> existing
+                ));
+        List<AttractivenessIpoProjection> finalAllIpos = allIpos;
+
+        return items.stream()
+                .collect(Collectors.toMap(
+                        AttractivenessItem::ipoId,
+                        item -> {
+                            AttractivenessIpoProjection target = projectionByStockId.getOrDefault(
+                                    item.ipoId(),
+                                    fallbackAttractivenessProjection(item)
+                            );
+                            return attractivenessService
+                                    .calculateForIpo(target, finalAllIpos, currentProfileType)
+                                    .selected()
+                                    .score();
+                        },
+                        (existing, replacement) -> existing
+                ));
+    }
+
+    private AttractivenessIpoProjection fallbackAttractivenessProjection(AttractivenessItem item) {
+        return new SimpleAttractivenessIpoProjection(item.ipoId(), item.name(), null, null, null, null);
     }
 
     private String firstUnderwriter(String underwriter) {
@@ -129,5 +241,45 @@ public class HomeService {
                         items.get(i).viewCount()
                 ))
                 .toList();
+    }
+
+    private record SimpleAttractivenessIpoProjection(
+            Long stockId,
+            String corpName,
+            String competitionRatio,
+            String instCommitmentRatio,
+            String floatingStockRatio,
+            String lockupTotalRatio
+    ) implements AttractivenessIpoProjection {
+
+        @Override
+        public Long getStockId() {
+            return stockId;
+        }
+
+        @Override
+        public String getCorpName() {
+            return corpName;
+        }
+
+        @Override
+        public String getCompetitionRatio() {
+            return competitionRatio;
+        }
+
+        @Override
+        public String getInstCommitmentRatio() {
+            return instCommitmentRatio;
+        }
+
+        @Override
+        public String getFloatingStockRatio() {
+            return floatingStockRatio;
+        }
+
+        @Override
+        public String getLockupTotalRatio() {
+            return lockupTotalRatio;
+        }
     }
 }

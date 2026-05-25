@@ -16,29 +16,26 @@ public final class IpoStockViewMapper {
     }
 
     public static String displayName(IpoStock stock) {
-        return displayName(stock.getCompanyName(), stock.getStockName(), stock.getCorpName());
+        return displayName(stock.getCorpName(), stock.getStockCode(), stock.getCorpName());
     }
 
     public static String displayName(String companyName, String stockName, String corpName) {
-        return firstText(companyName, stockName, corpName, "");
+        return firstText(corpName, companyName, stockName, "");
     }
 
     public static String displayStockName(IpoStock stock) {
-        return firstText(stock.getStockName(), stock.getCompanyName(), stock.getCorpName(), "");
+        return firstText(stock.getCorpName(), stock.getStockCode(), "");
     }
 
     public static String displayCompanyName(IpoStock stock) {
-        return firstText(stock.getCompanyName(), stock.getStockName(), stock.getCorpName(), "");
+        return firstText(stock.getCorpName(), stock.getStockCode(), "");
     }
 
     public static String displayCompanyName(String companyName, String stockName, String corpName) {
-        return firstText(companyName, stockName, corpName, "");
+        return firstText(corpName, companyName, stockName, "");
     }
 
     public static BigDecimal offerPrice(IpoStock stock) {
-        if (stock.getConfirmedOfferPrice() != null) {
-            return stock.getConfirmedOfferPrice();
-        }
         if (stock.getOfferingPrice() != null) {
             return BigDecimal.valueOf(stock.getOfferingPrice());
         }
@@ -66,17 +63,12 @@ public final class IpoStockViewMapper {
     }
 
     public static LocalDate subscriptionStartDate(IpoStock stock) {
-        if (stock.getSubscriptionStartDate() != null) {
-            return stock.getSubscriptionStartDate();
-        }
         return parseSubscriptionDateText(stock.getSubscriptionDate(), 0);
     }
 
     public static LocalDate subscriptionEndDate(IpoStock stock) {
-        if (stock.getSubscriptionEndDate() != null) {
-            return stock.getSubscriptionEndDate();
-        }
-        return parseSubscriptionDateText(stock.getSubscriptionDate(), 1);
+        LocalDate endDate = parseSubscriptionDateText(stock.getSubscriptionDate(), 1);
+        return endDate != null ? endDate : parseSubscriptionDateText(stock.getSubscriptionDate(), 0);
     }
 
     public static LocalDate parseIsoDate(String value) {

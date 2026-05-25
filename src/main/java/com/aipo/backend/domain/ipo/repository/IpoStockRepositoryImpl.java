@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @Repository
 public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
 
-    private static final String DEFAULT_SORT_EXPRESSION = "s.subscriptionStartDate";
+    private static final String DEFAULT_SORT_EXPRESSION = "s.subscriptionDate";
 
     @PersistenceContext
     private EntityManager em;
@@ -29,13 +29,13 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
         return em.createNativeQuery("""
                 select
                     m.stock_id,
-                    m.company_name,
-                    m.stock_name,
+                    m.corp_name,
+                    coalesce(m.corp_name, m.stock_code),
                     m.corp_name,
                     count(v.view_log_id) as view_count
                 from ipo_main m
                 left join ipo_view_log v on v.stock_id = m.stock_id
-                group by m.stock_id, m.company_name, m.stock_name, m.corp_name,
+                group by m.stock_id, m.corp_name, m.stock_code,
                     m.recent_growth_score, m.attract_score, m.created_at
                 order by count(v.view_log_id) desc,
                     coalesce(m.recent_growth_score, 0) desc,
@@ -54,15 +54,15 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
         return em.createNativeQuery("""
                 select
                     m.stock_id,
-                    m.company_name,
-                    m.stock_name,
+                    m.corp_name,
+                    coalesce(m.corp_name, m.stock_code),
                     m.corp_name,
                     m.recent_growth_score,
                     m.attract_score,
                     count(v.view_log_id) as view_count
                 from ipo_main m
                 left join ipo_view_log v on v.stock_id = m.stock_id
-                group by m.stock_id, m.company_name, m.stock_name, m.corp_name,
+                group by m.stock_id, m.corp_name, m.stock_code,
                     m.recent_growth_score, m.attract_score
                 order by coalesce(m.recent_growth_score, 0) desc,
                     coalesce(m.attract_score, 0) desc,
@@ -80,13 +80,13 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
         return em.createNativeQuery("""
                 select
                     m.stock_id,
-                    m.company_name,
-                    m.stock_name,
+                    m.corp_name,
+                    coalesce(m.corp_name, m.stock_code),
                     m.corp_name,
                     m.recent_growth_score,
                     m.attract_score,
-                    date_format(nullif(m.subscription_start_date, '0000-00-00'), '%Y-%m-%d') as subscription_start_date,
-                    date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
+                    null as subscriptionStartDate,
+                    null as subscriptionEndDate,
                     m.subscription_date,
                     m.demand_forecast_date,
                     m.refund_date,
@@ -110,20 +110,20 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
         List<Object[]> rows = em.createNativeQuery("""
                 select
                     m.stock_id,
-                    m.company_name,
-                    m.stock_name,
+                    m.corp_name,
+                    coalesce(m.corp_name, m.stock_code),
                     m.corp_name,
                     m.recent_growth_score,
                     m.attract_score,
-                    date_format(nullif(m.subscription_start_date, '0000-00-00'), '%Y-%m-%d') as subscription_start_date,
-                    date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
+                    null as subscriptionStartDate,
+                    null as subscriptionEndDate,
                     m.subscription_date,
                     m.demand_forecast_date,
                     m.refund_date,
                     date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                 from ipo_main m
-                order by coalesce(nullif(m.subscription_start_date, '0000-00-00'), nullif(m.subscription_end_date, '0000-00-00')) is null asc,
-                    coalesce(nullif(m.subscription_start_date, '0000-00-00'), nullif(m.subscription_end_date, '0000-00-00')) asc,
+                order by m.subscription_date is null asc,
+                    m.subscription_date asc,
                     coalesce(m.recent_growth_score, 0) desc,
                     coalesce(m.attract_score, 0) desc,
                     m.created_at desc
@@ -140,13 +140,13 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
         return em.createNativeQuery("""
                 select
                     m.stock_id,
-                    m.company_name,
-                    m.stock_name,
+                    m.corp_name,
+                    coalesce(m.corp_name, m.stock_code),
                     m.corp_name,
                     m.recent_growth_score,
                     m.attract_score,
-                    date_format(nullif(m.subscription_start_date, '0000-00-00'), '%Y-%m-%d') as subscription_start_date,
-                    date_format(nullif(m.subscription_end_date, '0000-00-00'), '%Y-%m-%d') as subscription_end_date,
+                    null as subscriptionStartDate,
+                    null as subscriptionEndDate,
                     m.subscription_date,
                     m.demand_forecast_date,
                     m.refund_date,
@@ -344,14 +344,12 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
         }
 
         return switch (sort) {
-            case "subscriptionStartDate" -> "s.subscriptionStartDate";
-            case "subscriptionEndDate" -> "s.subscriptionEndDate";
+            case "subscriptionStartDate", "subscriptionEndDate" -> "s.subscriptionDate";
             case "listingDate" -> "s.listingDate";
-            case "confirmedOfferPrice" -> "s.confirmedOfferPrice";
+            case "confirmedOfferPrice" -> "s.offeringPrice";
             case "attractionScore" -> "coalesce(s.attractScore, 0)";
             case "recentGrowthScore" -> "coalesce(s.recentGrowthScore, 0)";
-            case "stockName" -> "s.stockName";
-            case "companyName" -> "s.companyName";
+            case "stockName", "companyName" -> "s.corpName";
             default -> DEFAULT_SORT_EXPRESSION;
         };
     }

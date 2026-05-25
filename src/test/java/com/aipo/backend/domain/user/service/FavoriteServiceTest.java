@@ -244,11 +244,12 @@ class FavoriteServiceTest {
     ) {
         IpoStock ipoStock = instantiate(IpoStock.class);
         ReflectionTestUtils.setField(ipoStock, "id", id);
-        ReflectionTestUtils.setField(ipoStock, "companyName", companyName);
+        ReflectionTestUtils.setField(ipoStock, "corpName", companyName);
         ReflectionTestUtils.setField(ipoStock, "oneLineDescription", oneLineDescription);
-        ReflectionTestUtils.setField(ipoStock, "confirmedOfferPrice", confirmedOfferPrice);
-        ReflectionTestUtils.setField(ipoStock, "subscriptionStartDate", subscriptionStartDate);
-        ReflectionTestUtils.setField(ipoStock, "subscriptionEndDate", subscriptionEndDate);
+        ReflectionTestUtils.setField(ipoStock, "offeringPrice",
+                confirmedOfferPrice == null ? null : confirmedOfferPrice.intValue());
+        ReflectionTestUtils.setField(ipoStock, "subscriptionDate",
+                subscriptionStartDate + " ~ " + subscriptionEndDate);
         ReflectionTestUtils.setField(ipoStock, "createdAt", LocalDateTime.now());
         ReflectionTestUtils.setField(ipoStock, "updatedAt", LocalDateTime.now());
         return ipoStock;

@@ -8,9 +8,9 @@ import com.aipo.backend.domain.calendar.dto.SelectedDateSection;
 import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
 import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
 import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
-import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.ScheduleType;
 import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
+import com.aipo.backend.domain.ipo.repository.CalendarIpoProjection;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.service.AttractivenessService;
@@ -85,7 +85,7 @@ public class CalendarService {
         for (LocalDate date = gridStart; !date.isAfter(gridEnd); date = date.plusDays(1)) {
             List<CalendarCellScheduleItem> items = schedulesByDate.getOrDefault(date, Collections.emptyList()).stream()
                     .sorted(Comparator
-                            .comparing((CalendarSchedule schedule) -> schedule.stock().getId())
+                            .comparing((CalendarSchedule schedule) -> schedule.stock().stockId())
                             .thenComparing(CalendarSchedule::scheduleType))
                     .map(this::toCalendarCellScheduleItem)
                     .toList();
@@ -106,7 +106,7 @@ public class CalendarService {
             Long userId
     ) {
         List<Long> stockIds = schedules.stream()
-                .map(schedule -> schedule.stock().getId())
+                .map(schedule -> schedule.stock().stockId())
                 .distinct()
                 .toList();
         Map<Long, String> leadManagerMap = buildLeadManagerMap(stockIds);
@@ -114,7 +114,7 @@ public class CalendarService {
 
         List<SelectedDateCompanyItem> companies = schedules.stream()
                 .sorted(Comparator
-                        .comparing((CalendarSchedule schedule) -> schedule.stock().getId())
+                        .comparing((CalendarSchedule schedule) -> schedule.stock().stockId())
                         .thenComparing(CalendarSchedule::scheduleType))
                 .map(schedule -> toSelectedDateCompanyItem(schedule, leadManagerMap, scoreByStockId))
                 .toList();
@@ -124,8 +124,8 @@ public class CalendarService {
 
     private CalendarCellScheduleItem toCalendarCellScheduleItem(CalendarSchedule schedule) {
         return new CalendarCellScheduleItem(
-                schedule.stock().getId(),
-                IpoStockViewMapper.displayCompanyName(schedule.stock()),
+                schedule.stock().stockId(),
+                schedule.stock().displayName(),
                 schedule.scheduleType().name(),
                 getScheduleLabel(schedule.scheduleType())
         );
@@ -136,11 +136,11 @@ public class CalendarService {
             Map<Long, String> leadManagerMap,
             Map<Long, Integer> scoreByStockId
     ) {
-        Long stockId = schedule.stock().getId();
+        Long stockId = schedule.stock().stockId();
 
         return new SelectedDateCompanyItem(
                 stockId,
-                IpoStockViewMapper.displayCompanyName(schedule.stock()),
+                schedule.stock().displayName(),
                 leadManagerMap.getOrDefault(stockId, "-"),
                 toAttractionScore(scoreByStockId.get(stockId)),
                 schedule.scheduleType().name(),
@@ -239,10 +239,10 @@ public class CalendarService {
             return Map.of();
         }
 
-        List<IpoStock> selectedStocks = schedules.stream()
+        List<CalendarStock> selectedStocks = schedules.stream()
                 .map(CalendarSchedule::stock)
                 .collect(Collectors.toMap(
-                        IpoStock::getId,
+                        CalendarStock::stockId,
                         Function.identity(),
                         (existing, replacement) -> existing
                 ))
@@ -275,10 +275,10 @@ public class CalendarService {
 
         return selectedStocks.stream()
                 .collect(Collectors.toMap(
-                        IpoStock::getId,
+                        CalendarStock::stockId,
                         stock -> {
                             AttractivenessIpoProjection target = projectionByStockId.getOrDefault(
-                                    stock.getId(),
+                                    stock.stockId(),
                                     fallbackAttractivenessProjection(stock)
                             );
                             return attractivenessService
@@ -290,10 +290,10 @@ public class CalendarService {
                 ));
     }
 
-    private AttractivenessIpoProjection fallbackAttractivenessProjection(IpoStock stock) {
+    private AttractivenessIpoProjection fallbackAttractivenessProjection(CalendarStock stock) {
         return new SimpleAttractivenessIpoProjection(
-                stock.getId(),
-                IpoStockViewMapper.displayCompanyName(stock),
+                stock.stockId(),
+                stock.displayName(),
                 null,
                 null,
                 null,
@@ -303,30 +303,31 @@ public class CalendarService {
 
     private List<CalendarSchedule> buildSchedulesFromIpoMain(LocalDate monthStart, LocalDate monthEnd) {
         List<CalendarSchedule> schedules = new ArrayList<>();
-        for (IpoStock stock : ipoStockRepository.findAll()) {
+        for (CalendarIpoProjection projection : ipoStockRepository.findAllForCalendar()) {
+            CalendarStock stock = CalendarStock.from(projection);
             addSchedule(schedules, stock, ScheduleType.DEMAND_FORECAST_START,
-                    IpoStockViewMapper.parseDateText(stock.getDemandForecastDate(), 0), monthStart, monthEnd);
+                    IpoStockViewMapper.parseDateText(stock.demandForecastDate(), 0), monthStart, monthEnd);
             addSchedule(schedules, stock, ScheduleType.DEMAND_FORECAST_END,
-                    IpoStockViewMapper.parseDateText(stock.getDemandForecastDate(), 1), monthStart, monthEnd);
+                    IpoStockViewMapper.parseDateText(stock.demandForecastDate(), 1), monthStart, monthEnd);
             addSchedule(schedules, stock, ScheduleType.SUBSCRIPTION_START,
-                    IpoStockViewMapper.subscriptionStartDate(stock), monthStart, monthEnd);
+                    stock.subscriptionStartDate(), monthStart, monthEnd);
             addSchedule(schedules, stock, ScheduleType.SUBSCRIPTION_END,
-                    IpoStockViewMapper.subscriptionEndDate(stock), monthStart, monthEnd);
+                    stock.subscriptionEndDate(), monthStart, monthEnd);
             addSchedule(schedules, stock, ScheduleType.REFUND,
-                    IpoStockViewMapper.parseDateText(stock.getRefundDate(), 0), monthStart, monthEnd);
+                    IpoStockViewMapper.parseDateText(stock.refundDate(), 0), monthStart, monthEnd);
             addSchedule(schedules, stock, ScheduleType.LISTING,
-                    stock.getListingDate(), monthStart, monthEnd);
+                    stock.listingDate(), monthStart, monthEnd);
         }
         schedules.sort(Comparator
                 .comparing(CalendarSchedule::scheduleDate)
-                .thenComparing(schedule -> schedule.stock().getId())
+                .thenComparing(schedule -> schedule.stock().stockId())
                 .thenComparing(CalendarSchedule::scheduleType));
         return schedules;
     }
 
     private void addSchedule(
             List<CalendarSchedule> schedules,
-            IpoStock stock,
+            CalendarStock stock,
             ScheduleType scheduleType,
             LocalDate scheduleDate,
             LocalDate monthStart,
@@ -350,10 +351,51 @@ public class CalendarService {
     }
 
     private record CalendarSchedule(
-            IpoStock stock,
+            CalendarStock stock,
             ScheduleType scheduleType,
             LocalDate scheduleDate
     ) {
+    }
+
+    private record CalendarStock(
+            Long stockId,
+            String corpName,
+            String stockCode,
+            Float attractScore,
+            String demandForecastDate,
+            String subscriptionDate,
+            String refundDate,
+            LocalDate listingDate
+    ) {
+
+        private static CalendarStock from(CalendarIpoProjection projection) {
+            return new CalendarStock(
+                    projection.getStockId(),
+                    projection.getCorpName(),
+                    projection.getStockCode(),
+                    projection.getAttractScore(),
+                    projection.getDemandForecastDate(),
+                    projection.getSubscriptionDate(),
+                    projection.getRefundDate(),
+                    projection.getListingDate()
+            );
+        }
+
+        private String displayName() {
+            if (corpName != null && !corpName.isBlank()) {
+                return corpName.trim();
+            }
+            return stockCode == null ? "" : stockCode.trim();
+        }
+
+        private LocalDate subscriptionStartDate() {
+            return IpoStockViewMapper.parseSubscriptionDateText(subscriptionDate, 0);
+        }
+
+        private LocalDate subscriptionEndDate() {
+            LocalDate endDate = IpoStockViewMapper.parseSubscriptionDateText(subscriptionDate, 1);
+            return endDate != null ? endDate : subscriptionStartDate();
+        }
     }
 
     private record SimpleAttractivenessIpoProjection(

@@ -7,6 +7,7 @@ import com.aipo.backend.domain.ipo.dto.ProfileAttractivenessScore;
 import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
+import com.aipo.backend.domain.ipo.repository.CalendarIpoProjection;
 import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.service.AttractivenessService;
@@ -62,7 +63,7 @@ class CalendarServiceTest {
         ReflectionTestUtils.setField(stock, "subscriptionDate", "2026.04.28 ~ 04.29");
         ReflectionTestUtils.setField(stock, "refundDate", "2026.04.30");
 
-        when(ipoStockRepository.findAll()).thenReturn(List.of(stock));
+        when(ipoStockRepository.findAllForCalendar()).thenReturn(List.of(calendarProjection(stock)));
         when(ipoLeadManagerRepository.findAllByStock_IdIn(List.of(ipoId))).thenReturn(List.of(
                 leadManager(stock, "주관사A", 1),
                 leadManager(stock, "주관사B", 2)
@@ -110,7 +111,7 @@ class CalendarServiceTest {
         ReflectionTestUtils.setField(stock, "listingDate", LocalDate.of(2026, 4, 30));
 
         when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
-        when(ipoStockRepository.findAll()).thenReturn(List.of(stock));
+        when(ipoStockRepository.findAllForCalendar()).thenReturn(List.of(calendarProjection(stock)));
 
         CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 4, null, null);
 
@@ -134,7 +135,10 @@ class CalendarServiceTest {
         ReflectionTestUtils.setField(secondStock, "subscriptionDate", "2026.05.12 ~ 05.13");
 
         when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
-        when(ipoStockRepository.findAll()).thenReturn(List.of(firstStock, secondStock));
+        when(ipoStockRepository.findAllForCalendar()).thenReturn(List.of(
+                calendarProjection(firstStock),
+                calendarProjection(secondStock)
+        ));
         when(ipoLeadManagerRepository.findAllByStock_IdIn(List.of(1L))).thenReturn(List.of());
         when(ipoStockRepository.findUnderwritersByStockIds(List.of(1L))).thenReturn(Map.of());
         when(attractivenessService.calculateForIpo(any(AttractivenessIpoProjection.class), anyList(), isNull()))
@@ -158,7 +162,7 @@ class CalendarServiceTest {
         ));
 
         when(calendarService.getToday()).thenReturn(LocalDate.of(2026, 4, 21));
-        when(ipoStockRepository.findAll()).thenReturn(List.of());
+        when(ipoStockRepository.findAllForCalendar()).thenReturn(List.of());
 
         CalendarMonthResponse response = calendarService.getMonthlyCalendar(2026, 6, null, null);
 
@@ -190,7 +194,7 @@ class CalendarServiceTest {
     private IpoStock ipoStock(Long id, String companyName) {
         IpoStock ipoStock = instantiate(IpoStock.class);
         ReflectionTestUtils.setField(ipoStock, "id", id);
-        ReflectionTestUtils.setField(ipoStock, "companyName", companyName);
+        ReflectionTestUtils.setField(ipoStock, "corpName", companyName);
         ReflectionTestUtils.setField(ipoStock, "createdAt", LocalDateTime.now());
         ReflectionTestUtils.setField(ipoStock, "updatedAt", LocalDateTime.now());
         return ipoStock;
@@ -205,6 +209,19 @@ class CalendarServiceTest {
         return leadManager;
     }
 
+    private CalendarIpoProjection calendarProjection(IpoStock stock) {
+        return new TestCalendarIpoProjection(
+                stock.getId(),
+                stock.getCorpName(),
+                stock.getStockCode(),
+                stock.getAttractScore(),
+                stock.getDemandForecastDate(),
+                stock.getSubscriptionDate(),
+                stock.getRefundDate(),
+                stock.getListingDate()
+        );
+    }
+
     private <T> T instantiate(Class<T> type) {
         try {
             Constructor<T> constructor = type.getDeclaredConstructor();
@@ -212,6 +229,58 @@ class CalendarServiceTest {
             return constructor.newInstance();
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to instantiate " + type.getSimpleName(), exception);
+        }
+    }
+
+    private record TestCalendarIpoProjection(
+            Long stockId,
+            String corpName,
+            String stockCode,
+            Float attractScore,
+            String demandForecastDate,
+            String subscriptionDate,
+            String refundDate,
+            LocalDate listingDate
+    ) implements CalendarIpoProjection {
+
+        @Override
+        public Long getStockId() {
+            return stockId;
+        }
+
+        @Override
+        public String getCorpName() {
+            return corpName;
+        }
+
+        @Override
+        public String getStockCode() {
+            return stockCode;
+        }
+
+        @Override
+        public Float getAttractScore() {
+            return attractScore;
+        }
+
+        @Override
+        public String getDemandForecastDate() {
+            return demandForecastDate;
+        }
+
+        @Override
+        public String getSubscriptionDate() {
+            return subscriptionDate;
+        }
+
+        @Override
+        public String getRefundDate() {
+            return refundDate;
+        }
+
+        @Override
+        public LocalDate getListingDate() {
+            return listingDate;
         }
     }
 }

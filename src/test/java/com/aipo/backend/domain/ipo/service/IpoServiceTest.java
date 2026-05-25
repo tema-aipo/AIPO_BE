@@ -1,5 +1,7 @@
 package com.aipo.backend.domain.ipo.service;
 
+import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
+import com.aipo.backend.domain.investmentprofile.entity.UserInvestmentProfileResult;
 import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
 import com.aipo.backend.domain.ipo.dto.CompetitionTab;
 import com.aipo.backend.domain.ipo.dto.IpoDetailResponse;
@@ -14,6 +16,7 @@ import com.aipo.backend.domain.ipo.entity.IpoOfferingInfo;
 import com.aipo.backend.domain.ipo.entity.IpoSchedule;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.IpoSubscriptionCompetition;
+import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
 import com.aipo.backend.domain.ipo.repository.IpoAttractionReasonRepository;
 import com.aipo.backend.domain.ipo.repository.IpoDetailProjection;
 import com.aipo.backend.domain.ipo.repository.IpoDemandForecastRepository;
@@ -336,6 +339,59 @@ class IpoServiceTest {
     }
 
     @Test
+    @DisplayName("기존 매력지수 응답 필드도 사용자 성향별 선택 점수를 사용한다")
+    void getIpoDetail_usesSelectedAttractivenessScoreForLegacyAttraction() {
+        Long ipoId = 8L;
+        Long userId = 10L;
+        IpoStock ipoStock = ipoStock(
+                ipoId,
+                "성향별 매력지수 기업",
+                "설명",
+                new BigDecimal("12000.00"),
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 2),
+                LocalDate.of(2026, 7, 20)
+        );
+        UserInvestmentProfileResult profile = UserInvestmentProfileResult.createCompleted(
+                userId,
+                1,
+                InvestmentProfileType.STABLE,
+                80
+        );
+
+        stubDefaultDetailSources(ipoId, ipoStock);
+        when(ipoStockRepository.findAllForAttractiveness()).thenReturn(List.of(
+                attractivenessIpo(ipoId, "성향별 매력지수 기업", "0", "0", "38.48", "61.52")
+        ));
+        when(userInvestmentProfileResultRepository.findTopByUserIdAndCurrentTrueOrderByCreatedAtDescIdDesc(userId))
+                .thenReturn(Optional.of(profile));
+
+        IpoDetailResponse response = ipoService.getIpoDetail(ipoId, userId);
+
+        assertThat(response.attractiveness().selectedProfile()).isEqualTo("conservative");
+        assertThat(response.attractiveness().selected().score()).isEqualTo(response.attractiveness().conservative().score());
+        assertThat(response.attraction().totalScore()).isEqualByComparingTo(response.attractiveness().selected().score().toString());
+    }
+
+    private AttractivenessIpoProjection attractivenessIpo(
+            Long stockId,
+            String corpName,
+            String competitionRatio,
+            String instCommitmentRatio,
+            String floatingStockRatio,
+            String lockupTotalRatio
+    ) {
+        return new TestAttractivenessIpoProjection(
+                stockId,
+                corpName,
+                competitionRatio,
+                instCommitmentRatio,
+                floatingStockRatio,
+                lockupTotalRatio
+        );
+    }
+
+    @Test
     @DisplayName("ipo_main 날짜 텍스트를 ScheduleSection 으로 재구성한다")
     void getIpoDetail_rebuildsScheduleSectionFromScheduleList() {
         Long ipoId = 5L;
@@ -626,6 +682,46 @@ class IpoServiceTest {
         @Override
         public String getSubscriptionEndDate() {
             return subscriptionEndDate;
+        }
+    }
+
+    private record TestAttractivenessIpoProjection(
+            Long stockId,
+            String corpName,
+            String competitionRatio,
+            String instCommitmentRatio,
+            String floatingStockRatio,
+            String lockupTotalRatio
+    ) implements AttractivenessIpoProjection {
+
+        @Override
+        public Long getStockId() {
+            return stockId;
+        }
+
+        @Override
+        public String getCorpName() {
+            return corpName;
+        }
+
+        @Override
+        public String getCompetitionRatio() {
+            return competitionRatio;
+        }
+
+        @Override
+        public String getInstCommitmentRatio() {
+            return instCommitmentRatio;
+        }
+
+        @Override
+        public String getFloatingStockRatio() {
+            return floatingStockRatio;
+        }
+
+        @Override
+        public String getLockupTotalRatio() {
+            return lockupTotalRatio;
         }
     }
 }

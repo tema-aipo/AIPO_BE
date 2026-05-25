@@ -122,9 +122,9 @@ public class IpoService {
             Float attractScore,
             List<IpoAttractionReason> attractionReasons
     ) {
-        // 기존 상세 응답 호환 필드인 attraction.totalScore는 새 중립형 매력지수로 내려준다.
+        // 기존 상세 응답 호환 필드도 사용자 성향이 반영된 선택 매력지수로 내려준다.
         BigDecimal totalScore = attractiveness != null
-                ? BigDecimal.valueOf(attractiveness.balanced().score())
+                ? BigDecimal.valueOf(attractiveness.selected().score())
                 : attractScore == null ? null : BigDecimal.valueOf(attractScore);
 
         List<AttractionReasonItem> reasons = attractionReasons == null

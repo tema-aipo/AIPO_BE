@@ -178,7 +178,7 @@ CREATE TABLE IF NOT EXISTS ipo_attraction_reason (
         FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
-CREATE TABLE IF NOT EXISTS ipo_demand_forcast (
+CREATE TABLE IF NOT EXISTS ipo_demand_forecast (
     forecast_id BIGINT GENERATED ALWAYS AS IDENTITY,
     stock_id INT UNSIGNED NOT NULL,
     institutional_competition_rate NUMERIC(10,2),
@@ -367,7 +367,7 @@ DELETE FROM user_favorite_stock;
 DELETE FROM ipo_deposit_info;
 DELETE FROM ipo_schedule;
 DELETE FROM ipo_subscription_competition;
-DELETE FROM ipo_demand_forcast;
+DELETE FROM ipo_demand_forecast;
 DELETE FROM ipo_attraction_reason;
 DELETE FROM ipo_attraction_score;
 DELETE FROM ipo_lead_manager;
@@ -505,7 +505,7 @@ INSERT INTO ipo_attraction_reason (
     (3005, 103, '결제 SaaS 반복 매출', '구독형 매출 구조가 안정적입니다.', 1, '2026-04-27 18:10:00', '2026-04-27 18:10:00'),
     (3006, 103, '클라우드 확장성', '대형 고객사 확장이 기대됩니다.', 2, '2026-04-27 18:11:00', '2026-04-27 18:11:00');
 
-INSERT INTO ipo_demand_forcast (
+INSERT INTO ipo_demand_forecast (
     forecast_id, stock_id, institutional_competition_rate, participating_institution_count,
     above_upper_price_competition_rate, above_upper_price_institution_count,
     lockup_competition_rate, lockup_institution_count, lockup_rate,

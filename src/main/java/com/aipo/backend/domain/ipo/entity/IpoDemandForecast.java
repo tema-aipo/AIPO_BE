@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "ipo_demand_forecast",
+        name = "ipo_demand_forcast",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_ipo_demand_forecast_stock", columnNames = {"stock_id"})
         }

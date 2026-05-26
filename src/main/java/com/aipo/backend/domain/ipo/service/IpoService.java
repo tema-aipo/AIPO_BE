@@ -127,17 +127,54 @@ public class IpoService {
                 ? BigDecimal.valueOf(attractiveness.selected().score())
                 : attractScore == null ? null : BigDecimal.valueOf(attractScore);
 
-        List<AttractionReasonItem> reasons = attractionReasons == null
-                ? Collections.emptyList()
-                : attractionReasons.stream()
-                .map(reason -> new AttractionReasonItem(
-                        reason.getDisplayOrder(),
-                        reason.getTitle(),
-                        reason.getDescription()
-                ))
-                .toList();
+        List<AttractionReasonItem> reasons = buildFactorScoreReasons(attractiveness);
+        if (reasons.isEmpty()) {
+            reasons = attractionReasons == null
+                    ? Collections.emptyList()
+                    : attractionReasons.stream()
+                    .map(reason -> new AttractionReasonItem(
+                            reason.getDisplayOrder(),
+                            reason.getTitle(),
+                            reason.getDescription()
+                    ))
+                    .toList();
+        }
 
         return new AttractionSection(totalScore, reasons);
+    }
+
+    private List<AttractionReasonItem> buildFactorScoreReasons(AttractivenessResponse attractiveness) {
+        if (attractiveness == null || attractiveness.factorScores() == null) {
+            return Collections.emptyList();
+        }
+
+        FactorScoresResponse factorScores = attractiveness.factorScores();
+        return List.of(
+                new AttractionReasonItem(
+                        1,
+                        "\uAE30\uAD00 \uACBD\uC7C1\uB960 \uC810\uC218",
+                        formatFactorScore(factorScores.competitionScore())
+                ),
+                new AttractionReasonItem(
+                        2,
+                        "\uC758\uBB34\uBCF4\uC720\uD655\uC57D \uC810\uC218",
+                        formatFactorScore(factorScores.instCommitmentScore())
+                ),
+                new AttractionReasonItem(
+                        3,
+                        "\uC720\uD1B5\uAC00\uB2A5\uBB3C\uB7C9 \uC810\uC218",
+                        formatFactorScore(factorScores.floatingStockScore())
+                ),
+                new AttractionReasonItem(
+                        4,
+                        "\uBCF4\uD638\uC608\uC218 \uC810\uC218",
+                        formatFactorScore(factorScores.lockupScore())
+                )
+        );
+    }
+
+    private String formatFactorScore(Integer score) {
+        return score == null ? "-" : score + "\uC810";
     }
 
     private AttractivenessResponse buildAttractiveness(IpoDetailProjection ipo, Long userId) {

@@ -55,79 +55,75 @@ jobs:
           echo "Deploy artifact"
           ls -al deploy
 
-      - name: Configure SSH
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-        run: |
-          set -e
-          mkdir -p ~/.ssh
-          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/aipo_ec2_key
-          chmod 600 ~/.ssh/aipo_ec2_key
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
-
       - name: Prepare EC2 deploy directory
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-        run: |
-          set -e
-          ssh -i ~/.ssh/aipo_ec2_key "$EC2_USER@$EC2_HOST" 'rm -rf /tmp/aipo-deploy && mkdir -p /tmp/aipo-deploy && ls -al /tmp/aipo-deploy'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "Prepare deploy directory"
+            rm -rf /tmp/aipo-deploy
+            mkdir -p /tmp/aipo-deploy
+            ls -al /tmp/aipo-deploy
 
       - name: Upload jar to EC2
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-        run: |
-          set -e
-          scp -i ~/.ssh/aipo_ec2_key deploy/app.jar "$EC2_USER@$EC2_HOST:/tmp/aipo-deploy/app.jar"
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "deploy/app.jar"
+          target: "/tmp/aipo-deploy"
+          strip_components: 1
 
       - name: Restart Spring Boot service
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-        run: |
-          set -e
-          ssh -i ~/.ssh/aipo_ec2_key "$EC2_USER@$EC2_HOST" <<'EOF'
-          set -e
-          APP_DIR="/opt/aipo"
-          APP_JAR="$APP_DIR/app.jar"
-          APP_JAR_PATTERN="[/]opt/aipo/app.jar"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            APP_DIR="/opt/aipo"
+            APP_JAR="$APP_DIR/app.jar"
+            APP_JAR_PATTERN="[/]opt/aipo/app.jar"
 
-          echo "Check uploaded jar"
-          ls -al /tmp/aipo-deploy
-          if [ ! -f /tmp/aipo-deploy/app.jar ]; then
-            echo "Uploaded jar not found: /tmp/aipo-deploy/app.jar"
-            exit 1
-          fi
+            echo "Check uploaded jar"
+            ls -al /tmp/aipo-deploy
+            if [ ! -f /tmp/aipo-deploy/app.jar ]; then
+              echo "Uploaded jar not found: /tmp/aipo-deploy/app.jar"
+              exit 1
+            fi
 
-          echo "Check app directory"
-          sudo mkdir -p "$APP_DIR"
-          sudo ls -al "$APP_DIR" || true
+            echo "Check app directory"
+            sudo mkdir -p "$APP_DIR"
+            sudo ls -al "$APP_DIR" || true
 
-          echo "Current service status"
-          sudo systemctl status aipo --no-pager || true
+            echo "Current service status"
+            sudo systemctl status aipo --no-pager || true
 
-          echo "Stop service"
-          sudo systemctl stop aipo || true
+            echo "Stop service"
+            sudo systemctl stop aipo || true
 
-          echo "Kill duplicated java process"
-          sudo pkill -f "$APP_JAR_PATTERN" || true
-          sleep 5
+            echo "Kill duplicated java process"
+            sudo pkill -f "$APP_JAR_PATTERN" || true
+            sleep 5
 
-          echo "Reload systemd"
-          sudo systemctl daemon-reload
+            echo "Reload systemd"
+            sudo systemctl daemon-reload
 
-          echo "Replace app.jar"
-          sudo install -m 0644 /tmp/aipo-deploy/app.jar "$APP_JAR"
-          sudo ls -al "$APP_DIR"
+            echo "Replace app.jar"
+            sudo install -m 0644 /tmp/aipo-deploy/app.jar "$APP_JAR"
+            sudo ls -al "$APP_DIR"
 
-          echo "Start service"
-          sudo systemctl start aipo
+            echo "Start service"
+            sudo systemctl start aipo
 
-          echo "Check service status"
-          sudo systemctl status aipo --no-pager
+            echo "Check service status"
+            sudo systemctl status aipo --no-pager
 
-          echo "Recent service logs"
-          sudo journalctl -u aipo --since "2 minutes ago" --no-pager || true
-          EOF
+            echo "Recent service logs"
+            sudo journalctl -u aipo --since "2 minutes ago" --no-pager || true

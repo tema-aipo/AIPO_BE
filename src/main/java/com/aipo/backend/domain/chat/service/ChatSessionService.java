@@ -46,7 +46,7 @@ public class ChatSessionService {
                 chatSession.isPinned(),
                 chatSession.getCreatedAt(),
                 WELCOME_MESSAGE,
-                chatRecommendedQuestionService.getActiveCommonQuestions()
+                chatRecommendedQuestionService.getRecommendedQuestionItems(userId)
         );
     }
 

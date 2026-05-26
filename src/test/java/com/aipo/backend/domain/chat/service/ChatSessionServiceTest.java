@@ -57,8 +57,8 @@ class ChatSessionServiceTest {
         ChatSession chatSession = ChatSession.create(userId);
         ReflectionTestUtils.setField(chatSession, "id", 10L);
         when(chatSessionRepository.save(any(ChatSession.class))).thenReturn(chatSession);
-        when(chatRecommendedQuestionService.getActiveCommonQuestions()).thenReturn(List.of(
-                new RecommendedQuestionItem(1L, "이번 주 청약 일정 알려줘", 1)
+        when(chatRecommendedQuestionService.getRecommendedQuestionItems(userId)).thenReturn(List.of(
+                new RecommendedQuestionItem(1L, "이번 주 청약 일정 알려줘", "SCHEDULE", "GENERAL")
         ));
 
         CreateChatSessionResponse response = chatSessionService.createSession(userId);

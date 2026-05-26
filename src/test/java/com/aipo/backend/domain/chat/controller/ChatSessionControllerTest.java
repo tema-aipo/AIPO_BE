@@ -61,7 +61,7 @@ class ChatSessionControllerTest {
                 false,
                 LocalDateTime.of(2026, 4, 22, 10, 0),
                 "안녕하세요",
-                List.of(new RecommendedQuestionItem(1L, "이번 주 청약 일정 알려줘", 1))
+                List.of(new RecommendedQuestionItem(1L, "이번 주 청약 일정 알려줘", "SCHEDULE", "GENERAL"))
         ));
 
         mockMvc.perform(post("/api/v1/chat/sessions")

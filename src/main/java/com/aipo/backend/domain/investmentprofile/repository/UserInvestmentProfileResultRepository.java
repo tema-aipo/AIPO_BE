@@ -14,6 +14,16 @@ public interface UserInvestmentProfileResultRepository extends JpaRepository<Use
 
     Optional<UserInvestmentProfileResult> findTopByUserIdAndCurrentTrueOrderByCreatedAtDescIdDesc(Long userId);
 
+    @Query(value = """
+            select profile_type
+              from user_investment_profile_result
+             where user_id = :userId
+               and is_current = 1
+             order by created_at desc, result_id desc
+             limit 1
+            """, nativeQuery = true)
+    Optional<String> findCurrentProfileTypeValueByUserId(@Param("userId") Long userId);
+
     boolean existsByUserIdAndCurrentTrue(Long userId);
 
     @Modifying

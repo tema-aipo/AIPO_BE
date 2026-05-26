@@ -212,6 +212,21 @@ CREATE TABLE IF NOT EXISTS ipo_subscription_competition (
         FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
+CREATE TABLE IF NOT EXISTS ipo_subscription_company (
+    subscription_company_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    stock_id INT UNSIGNED NOT NULL,
+    securities_company_name VARCHAR(100) NOT NULL,
+    allocated_share_count INT,
+    subscription_limit_share_count INT,
+    note VARCHAR(100),
+    display_order INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (subscription_company_id),
+    CONSTRAINT fk_ipo_subscription_company_stock
+        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
+);
+
 CREATE TABLE IF NOT EXISTS ipo_schedule (
     schedule_id BIGINT GENERATED ALWAYS AS IDENTITY,
     stock_id INT UNSIGNED NOT NULL,
@@ -365,6 +380,7 @@ DELETE FROM user_notification_setting;
 DELETE FROM ipo_view_log;
 DELETE FROM user_favorite_stock;
 DELETE FROM ipo_deposit_info;
+DELETE FROM ipo_subscription_company;
 DELETE FROM ipo_schedule;
 DELETE FROM ipo_subscription_competition;
 DELETE FROM ipo_demand_forecast;
@@ -524,6 +540,16 @@ INSERT INTO ipo_subscription_competition (
     (5001, 101, 'EQUAL', 2.50, 150.25, 1.25, 320.75, '2026-04-21 10:00:00', '2026-04-21 10:00:00'),
     (5002, 102, 'PROPORTIONAL', 1.80, 112.40, 0.92, 278.10, '2026-04-26 10:00:00', '2026-04-26 10:00:00'),
     (5003, 103, 'EQUAL', 2.10, 134.80, 1.05, 301.45, '2026-04-29 10:00:00', '2026-04-29 10:00:00');
+
+INSERT INTO ipo_subscription_company (
+    subscription_company_id, stock_id, securities_company_name,
+    allocated_share_count, subscription_limit_share_count, note,
+    display_order, created_at, updated_at
+) OVERRIDING SYSTEM VALUE VALUES
+    (5501, 101, '미래에셋증권', 120000, 4000, '온라인 청약 우대 가능', 1, '2026-04-21 10:10:00', '2026-04-21 10:10:00'),
+    (5502, 101, '한국투자증권', 80000, 2500, '일반 고객 한도 기준', 2, '2026-04-21 10:11:00', '2026-04-21 10:11:00'),
+    (5503, 102, 'NH투자증권', 90000, 3000, '대표 주관사', 1, '2026-04-26 10:10:00', '2026-04-26 10:10:00'),
+    (5504, 103, 'KB증권', 70000, 2000, '공동 주관사', 1, '2026-04-29 10:10:00', '2026-04-29 10:10:00');
 
 INSERT INTO ipo_schedule (
     schedule_id, stock_id, schedule_type, schedule_date, note, created_at, updated_at

@@ -40,7 +40,7 @@ public class IpoService {
     private final IpoAttractionReasonRepository ipoAttractionReasonRepository;
     private final IpoDemandForecastRepository ipoDemandForecastRepository;
     private final IpoSubscriptionCompetitionRepository ipoSubscriptionCompetitionRepository;
-    private final IpoDepositInfoRepository ipoDepositInfoRepository;
+    private final IpoSubscriptionCompanyRepository ipoSubscriptionCompanyRepository;
     private final IpoOfferingInfoRepository ipoOfferingInfoRepository;
     private final UserFavoriteStockRepository userFavoriteStockRepository;
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
@@ -75,7 +75,8 @@ public class IpoService {
         IpoDemandForecast demandForecast = ipoDemandForecastRepository.findByStock_Id(ipoId).orElse(null);
         IpoSubscriptionCompetition subscriptionCompetition =
                 ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId).orElse(null);
-        List<IpoDepositInfo> depositInfos = ipoDepositInfoRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
+        List<IpoSubscriptionCompany> depositInfos =
+                ipoSubscriptionCompanyRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
         IpoOfferingInfo offeringInfo = ipoOfferingInfoRepository.findByStock_Id(ipoId).orElse(null);
         AttractivenessResponse attractiveness = buildAttractiveness(ipo, userId);
 
@@ -362,7 +363,7 @@ public class IpoService {
         return IpoStockViewMapper.parseSubscriptionDateText(ipo.getSubscriptionDate(), 1);
     }
 
-    private List<DepositInfoItem> buildDepositInfos(List<IpoDepositInfo> depositInfos) {
+    private List<DepositInfoItem> buildDepositInfos(List<IpoSubscriptionCompany> depositInfos) {
         if (depositInfos == null || depositInfos.isEmpty()) {
             return Collections.emptyList();
         }
@@ -371,7 +372,9 @@ public class IpoService {
                 .map(depositInfo -> new DepositInfoItem(
                         depositInfo.getDisplayOrder(),
                         depositInfo.getSecuritiesCompanyName(),
-                        depositInfo.getAmountForTenShares()
+                        depositInfo.getAllocatedShareCount(),
+                        depositInfo.getSubscriptionLimitShareCount(),
+                        depositInfo.getNote()
                 ))
                 .toList();
     }

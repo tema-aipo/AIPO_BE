@@ -239,7 +239,7 @@ class IpoControllerTest {
                         LocalDate.of(2026, 5, 8)
                 ),
                 List.of(
-                        new DepositInfoItem(1, "증권사A", new BigDecimal("75000.00"))
+                        new DepositInfoItem(1, "증권사A", 120000, 4000, "대표 주관사")
                 ),
                 new OfferingInfoSection(
                         new BigDecimal("250000000000.00"),

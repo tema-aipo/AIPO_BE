@@ -174,8 +174,11 @@ class IpoServiceTest {
         assertThat(response.attractiveness().selectedProfile()).isNull();
         assertThat(response.attractiveness().selected().score()).isEqualTo(response.attractiveness().defaultScore().score());
         assertThat(response.attraction().reasons()).hasSize(4);
-        assertThat(response.attraction().reasons().get(0).title()).isEqualTo("기관 경쟁률 점수");
-        assertThat(response.attraction().reasons().get(0).description()).isEqualTo("0점");
+        assertThat(response.attraction().reasons().get(0).title()).isEqualTo("기관 경쟁률 반영점수 0점");
+        assertThat(response.attraction().reasons().get(0).description()).isEqualTo("0점 × 35.3% = 0점");
+        assertThat(response.attraction().reasons().stream()
+                .mapToInt(reason -> Integer.parseInt(reason.title().replaceAll(".* (\\d+)점", "$1")))
+                .sum()).isEqualTo(response.attraction().totalScore().intValue());
         assertThat(response.demandForecast().institutionalCompetitionRate()).isEqualByComparingTo("1234.56");
         assertThat(response.subscriptionCompetition().defaultTab()).isEqualTo(CompetitionTab.EQUAL);
         assertThat(response.subscriptionCompetition().equalAllocation().competitionRate()).isEqualByComparingTo("150.25");

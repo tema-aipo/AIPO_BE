@@ -72,10 +72,24 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(allowedOriginPatterns);
+
+        // ✨ 수정 포인트 1: S3 주소 및 로컬 호스트를 명시적으로 허용 (http:// 필수, 맨 뒤 / 없음)
+        configuration.setAllowedOrigins(List.of(
+                "http://gachon-25-admin.s3-website.ap-northeast-2.amazonaws.com",
+                "http://localhost:3000",
+                "http://localhost:5173"
+        ));
+
+        // (참고: application.yml 패턴도 같이 쓰고 싶다면 아래 줄을 살려두셔도 됩니다)
+        if (allowedOriginPatterns != null && !allowedOriginPatterns.isEmpty()) {
+            configuration.setAllowedOriginPatterns(allowedOriginPatterns);
+        }
+
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        configuration.setAllowCredentials(false);
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+
+        // ✨ 수정 포인트 2: 프론트엔드 팀원 요청대로 true로 변경! (가장 중요)
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

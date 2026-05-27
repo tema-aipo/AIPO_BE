@@ -59,6 +59,34 @@ class HomeServiceTest {
     }
 
     @Test
+    void getHome_recentGrowth_returnsRecentListingsOnlyInDateOrder() {
+        HomeService homeService = new HomeService(
+                ipoStockRepository,
+                userInvestmentProfileResultRepository,
+                attractivenessService
+        );
+        LocalDate today = LocalDate.now();
+        AttractivenessItem oldListing = listingItem(1L, "old-listing", today.minusYears(2));
+        AttractivenessItem recentOlder = listingItem(2L, "recent-older", today.minusDays(30));
+        AttractivenessItem todayListing = listingItem(3L, "today-listing", today);
+        AttractivenessItem futureListing = listingItem(4L, "future-listing", today.plusDays(2));
+        AttractivenessItem recentNewer = listingItem(5L, "recent-newer", today.minusDays(3));
+
+        when(ipoStockRepository.findFeaturedIpoCandidates()).thenReturn(List.of());
+        when(ipoStockRepository.findTrendingIpos()).thenReturn(List.of());
+        when(ipoStockRepository.findAttractivenessByRecentGrowth())
+                .thenReturn(List.of(oldListing, recentOlder, todayListing, futureListing, recentNewer));
+        when(ipoStockRepository.findUnderwritersByStockIds(List.of(3L, 5L, 2L))).thenReturn(Map.of());
+
+        HomeResponse response = homeService.getHome("recentGrowth", null);
+
+        assertThat(response.attractiveness().selectedTab()).isEqualTo("recentGrowth");
+        assertThat(response.attractiveness().items())
+                .extracting(AttractivenessItem::ipoId)
+                .containsExactly(3L, 5L, 2L);
+    }
+
+    @Test
     void getHome_featuredIpos_includeListingsWithinSevenDaysAndSortByProfileScoreThenViewCount() {
         HomeService homeService = new HomeService(
                 ipoStockRepository,
@@ -109,6 +137,20 @@ class HomeServiceTest {
                 null,
                 null,
                 null
+        );
+    }
+
+    private AttractivenessItem listingItem(Long ipoId, String name, LocalDate listingDate) {
+        return new AttractivenessItem(
+                ipoId,
+                name,
+                0,
+                null,
+                null,
+                null,
+                null,
+                null,
+                listingDate
         );
     }
 

@@ -82,16 +82,17 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     count(v.view_log_id) as view_count
                 from ipo_main m
                 left join ipo_view_log v on v.stock_id = m.stock_id
-                    and v.viewed_at >= :todayStart
-                    and v.viewed_at < :tomorrowStart
+                where (
+                    nullif(m.listing_date, '0000-00-00') is null
+                    or nullif(m.listing_date, '0000-00-00') >= date_sub(current_date(), interval 365 day)
+                )
                 group by m.stock_id, m.corp_name, m.stock_code,
                     m.attract_score
+                having count(v.view_log_id) > 0
                 order by count(v.view_log_id) desc,
                     coalesce(m.attract_score, 0) desc,
                     m.stock_id asc
                 """)
-                .setParameter("todayStart", todayStart())
-                .setParameter("tomorrowStart", tomorrowStart())
                 .setMaxResults(3)
                 .getResultList()
                 .stream()
@@ -119,10 +120,14 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 left join ipo_view_log v on v.stock_id = m.stock_id
                     and v.viewed_at >= :todayStart
                     and v.viewed_at < :tomorrowStart
+                where nullif(m.listing_date, '0000-00-00') is not null
+                    and nullif(m.listing_date, '0000-00-00') <= current_date()
+                    and nullif(m.listing_date, '0000-00-00') >= date_sub(current_date(), interval 365 day)
                 group by m.stock_id, m.corp_name, m.stock_code, m.attract_score,
                     m.subscription_date, m.demand_forecast_date, m.refund_date,
                     m.listing_date, m.created_at
-                order by count(v.view_log_id) desc,
+                order by nullif(m.listing_date, '0000-00-00') desc,
+                    count(v.view_log_id) desc,
                     coalesce(m.attract_score, 0) desc,
                     m.created_at desc
                 """)

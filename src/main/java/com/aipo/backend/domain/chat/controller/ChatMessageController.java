@@ -7,6 +7,8 @@ import com.aipo.backend.domain.chat.dto.SubmitChatFeedbackResponse;
 import com.aipo.backend.domain.chat.service.ChatFeedbackService;
 import com.aipo.backend.domain.chat.service.ChatMessageService;
 import com.aipo.backend.global.config.OpenApiConfig;
+import com.aipo.backend.global.exception.CustomException;
+import com.aipo.backend.global.exception.ErrorCode;
 import com.aipo.backend.global.security.service.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -36,6 +38,9 @@ public class ChatMessageController {
             @Valid @RequestBody SendChatMessageRequest request,
             @AuthenticationPrincipal CustomUserDetails principal
     ) {
+        if (principal == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
         return ResponseEntity.ok(
                 chatMessageService.sendMessage(principal.getUserId(), sessionId, request.question())
         );
@@ -48,6 +53,9 @@ public class ChatMessageController {
             @RequestBody SubmitChatFeedbackRequest request,
             @AuthenticationPrincipal CustomUserDetails principal
     ) {
+        if (principal == null) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
         return ResponseEntity.ok(
                 chatFeedbackService.submitFeedback(
                         principal.getUserId(),

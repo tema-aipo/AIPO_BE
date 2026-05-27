@@ -26,6 +26,7 @@ public class HomeService {
 
     private static final int FEATURED_LISTING_START_DAYS = 1;
     private static final int FEATURED_LISTING_END_DAYS = 7;
+    private static final int RECENT_LISTING_LOOKBACK_DAYS = 365;
 
     private final IpoStockRepository ipoStockRepository;
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
@@ -83,6 +84,10 @@ public class HomeService {
     private List<AttractivenessItem> sortAndLimitItems(HomeTab tab, List<AttractivenessItem> items) {
         return switch (tab) {
             case RECENT_GROWTH -> items.stream()
+                    .filter(item -> isRecentListing(item, LocalDate.now()))
+                    .sorted(Comparator
+                            .comparing(AttractivenessItem::listingDate, Comparator.reverseOrder())
+                            .thenComparing(AttractivenessItem::ipoId))
                     .limit(10)
                     .toList();
             case SUBSCRIPTION_UPCOMING -> {
@@ -116,6 +121,14 @@ public class HomeService {
             return today;
         }
         return startDate;
+    }
+
+    private boolean isRecentListing(AttractivenessItem item, LocalDate today) {
+        LocalDate listingDate = item.listingDate();
+        if (listingDate == null || listingDate.isAfter(today)) {
+            return false;
+        }
+        return !listingDate.isBefore(today.minusDays(RECENT_LISTING_LOOKBACK_DAYS));
     }
 
     private List<FeaturedIpoItem> getFeaturedIpos(Long userId) {

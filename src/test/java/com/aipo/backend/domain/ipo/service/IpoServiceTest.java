@@ -10,9 +10,7 @@ import com.aipo.backend.domain.ipo.dto.IpoListResponse;
 import com.aipo.backend.domain.ipo.entity.CompetitionTabType;
 import com.aipo.backend.domain.ipo.entity.IpoAttractionReason;
 import com.aipo.backend.domain.ipo.entity.IpoDemandForecast;
-import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
 import com.aipo.backend.domain.ipo.entity.IpoOfferingInfo;
-import com.aipo.backend.domain.ipo.entity.IpoSchedule;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.IpoSubscriptionCompetition;
 import com.aipo.backend.domain.ipo.entity.IpoSubscriptionCompany;
@@ -21,7 +19,6 @@ import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
 import com.aipo.backend.domain.ipo.repository.IpoAttractionReasonRepository;
 import com.aipo.backend.domain.ipo.repository.IpoDetailProjection;
 import com.aipo.backend.domain.ipo.repository.IpoDemandForecastRepository;
-import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoOfferingInfoRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.repository.IpoSubscriptionCompetitionRepository;
@@ -59,9 +56,6 @@ class IpoServiceTest {
 
     @Mock
     private IpoStockRepository ipoStockRepository;
-
-    @Mock
-    private IpoLeadManagerRepository ipoLeadManagerRepository;
 
     @Mock
     private IpoAttractionReasonRepository ipoAttractionReasonRepository;
@@ -145,12 +139,9 @@ class IpoServiceTest {
         ReflectionTestUtils.setField(ipoStock, "demandForecastDate", "2026.04.20 ~ 04.21");
         ReflectionTestUtils.setField(ipoStock, "refundDate", "2026.05.02");
 
-        when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
+        when(ipoStockRepository.findDetailByStockId(ipoId))
+                .thenReturn(Optional.of(ipoDetailProjection(ipoStock, "LeadA, LeadB")));
         when(ipoStockRepository.getReferenceById(ipoId)).thenReturn(ipoStock);
-        when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
-                leadManager(ipoStock, "주관사A", 1),
-                leadManager(ipoStock, "주관사B", 2)
-        ));
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
                 attractionReason(ipoStock, "수요예측 강세", "기관 경쟁률이 높습니다.", 1),
                 attractionReason(ipoStock, "유통물량 부담 적음", "상장 직후 유통 가능 물량이 제한적입니다.", 2)
@@ -173,7 +164,7 @@ class IpoServiceTest {
         assertThat(response.summary().companyName()).isEqualTo("AIPO");
         assertThat(response.summary().oneLineDescription()).isEqualTo("공시문서 기반 기업");
         assertThat(response.summary().confirmedOfferPrice()).isEqualByComparingTo("15000.00");
-        assertThat(response.summary().leadManagers()).containsExactly("주관사A", "주관사B");
+        assertThat(response.summary().leadManagers()).containsExactly("LeadA", "LeadB");
         assertThat(response.summary().subscriptionPeriod().startDate()).isEqualTo(LocalDate.of(2026, 4, 28));
         assertThat(response.summary().subscriptionPeriod().endDate()).isEqualTo(LocalDate.of(2026, 4, 29));
         assertThat(response.summary().isFavorite()).isTrue();
@@ -259,7 +250,6 @@ class IpoServiceTest {
         );
 
         when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
-        when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
         when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
@@ -299,7 +289,6 @@ class IpoServiceTest {
 
         when(ipoStockRepository.findDetailByStockId(ipoId))
                 .thenReturn(Optional.of(ipoDetailProjection(ipoStock, "한국투자증권, NH투자증권")));
-        when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
         when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
@@ -443,7 +432,6 @@ class IpoServiceTest {
 
     private void stubDefaultDetailSources(Long ipoId, IpoStock ipoStock) {
         when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
-        when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
         when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
@@ -503,15 +491,6 @@ class IpoServiceTest {
 
     private String toIsoDate(LocalDate date) {
         return date == null ? null : date.toString();
-    }
-
-    private IpoLeadManager leadManager(IpoStock ipoStock, String managerName, int displayOrder) {
-        IpoLeadManager leadManager = instantiate(IpoLeadManager.class);
-        ReflectionTestUtils.setField(leadManager, "stock", ipoStock);
-        ReflectionTestUtils.setField(leadManager, "managerName", managerName);
-        ReflectionTestUtils.setField(leadManager, "displayOrder", displayOrder);
-        ReflectionTestUtils.setField(leadManager, "createdAt", LocalDateTime.now());
-        return leadManager;
     }
 
     private IpoAttractionReason attractionReason(

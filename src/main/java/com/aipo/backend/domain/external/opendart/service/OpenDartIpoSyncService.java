@@ -10,12 +10,7 @@ import com.aipo.backend.domain.external.opendart.repository.ExternalApiResponseR
 import com.aipo.backend.domain.external.opendart.repository.IpoExternalDisclosureRepository;
 import com.aipo.backend.domain.external.kind.dto.KindIpoSupplementResult;
 import com.aipo.backend.domain.external.kind.service.KindIpoSupplementService;
-import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
-import com.aipo.backend.domain.ipo.entity.IpoSchedule;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
-import com.aipo.backend.domain.ipo.entity.ScheduleType;
-import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
-import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,8 +51,6 @@ public class OpenDartIpoSyncService {
     private final ExternalApiResponseRepository externalApiResponseRepository;
     private final IpoExternalDisclosureRepository ipoExternalDisclosureRepository;
     private final IpoStockRepository ipoStockRepository;
-    private final IpoLeadManagerRepository ipoLeadManagerRepository;
-    private final IpoScheduleRepository ipoScheduleRepository;
     private final KindIpoSupplementService kindIpoSupplementService;
     private final IpoExternalSourceDataService ipoExternalSourceDataService;
 
@@ -391,10 +384,8 @@ public class OpenDartIpoSyncService {
                 )));
         counter.upsertedStockCount++;
 
-        replaceLeadManagers(stock, data.leadManagers());
-        upsertSchedule(stock, ScheduleType.SUBSCRIPTION_START, data.subscriptionStartDate(), "OpenDART 청약 시작일");
-        upsertSchedule(stock, ScheduleType.SUBSCRIPTION_END, data.subscriptionEndDate(), "OpenDART 청약 종료일");
-        upsertSchedule(stock, ScheduleType.REFUND, data.paymentDate(), "OpenDART 납입기일");
+        stock.updateSupplementalDates(null, null, data.paymentDate(), null);
+        stock.updateUnderwriter(leadManagers);
         ipoExternalSourceDataService.mergeByDartCorpCode(disclosure.getCorpCode());
     }
 
@@ -405,30 +396,6 @@ public class OpenDartIpoSyncService {
         return ipoStockRepository.findAllByDartCorpCode(dartCorpCode)
                 .stream()
                 .findFirst();
-    }
-
-    private void replaceLeadManagers(IpoStock stock, Set<String> leadManagers) {
-        if (leadManagers == null || leadManagers.isEmpty()) {
-            return;
-        }
-        ipoLeadManagerRepository.deleteAllByStock_Id(stock.getId());
-        ipoLeadManagerRepository.flush();
-
-        int displayOrder = 1;
-        for (String leadManager : leadManagers) {
-            ipoLeadManagerRepository.save(IpoLeadManager.create(stock, leadManager, displayOrder++));
-        }
-    }
-
-    private void upsertSchedule(IpoStock stock, ScheduleType scheduleType, LocalDate date, String note) {
-        if (date == null) {
-            return;
-        }
-        ipoScheduleRepository.findByStock_IdAndScheduleType(stock.getId(), scheduleType)
-                .ifPresentOrElse(
-                        schedule -> schedule.updateDate(date, note),
-                        () -> ipoScheduleRepository.save(IpoSchedule.create(stock, scheduleType, date, note))
-                );
     }
 
     private Map<String, EquitySecurityData> parseEquitySecurityData(String responseBody) {

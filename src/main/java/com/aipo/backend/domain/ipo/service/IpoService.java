@@ -37,7 +37,6 @@ public class IpoService {
     private static final double CONSERVATIVE_REMAINING_WEIGHT = 0.95;
 
     private final IpoStockRepository ipoStockRepository;
-    private final IpoLeadManagerRepository ipoLeadManagerRepository;
     private final IpoAttractionReasonRepository ipoAttractionReasonRepository;
     private final IpoDemandForecastRepository ipoDemandForecastRepository;
     private final IpoSubscriptionCompetitionRepository ipoSubscriptionCompetitionRepository;
@@ -72,7 +71,6 @@ public class IpoService {
         ipoStockRepository.incrementRecentGrowthScore(ipoId);
         saveViewLog(ipoId, userId);
 
-        List<IpoLeadManager> leadManagers = ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
         List<IpoAttractionReason> attractionReasons =
                 ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
         IpoDemandForecast demandForecast = ipoDemandForecastRepository.findByStock_Id(ipoId).orElse(null);
@@ -85,7 +83,7 @@ public class IpoService {
 
         return new IpoDetailResponse(
                 ipo.getStockId(),
-                buildSummary(ipo, leadManagers, userId),
+                buildSummary(ipo, userId),
                 buildAttraction(attractiveness, ipo.getAttractScore(), attractionReasons),
                 attractiveness,
                 buildDemandForecast(demandForecast),
@@ -101,7 +99,7 @@ public class IpoService {
         ipoViewLogRepository.save(IpoViewLog.create(userId, stockReference, VIEW_SOURCE_DETAIL));
     }
 
-    private SummarySection buildSummary(IpoDetailProjection ipo, List<IpoLeadManager> leadManagers, Long userId) {
+    private SummarySection buildSummary(IpoDetailProjection ipo, Long userId) {
         boolean isFavorite = userId != null
                 && userFavoriteStockRepository.existsByUserIdAndStock_Id(userId, ipo.getStockId());
 
@@ -109,7 +107,7 @@ public class IpoService {
                 IpoStockViewMapper.displayCompanyName(ipo.getCompanyName(), ipo.getStockName(), ipo.getCorpName()),
                 ipo.getOneLineDescription(),
                 IpoStockViewMapper.offerPrice(ipo.getConfirmedOfferPrice(), ipo.getOfferingPrice()),
-                leadManagerNames(ipo, leadManagers),
+                leadManagerNames(ipo),
                 new DateRange(
                         subscriptionStartDate(ipo),
                         subscriptionEndDate(ipo)
@@ -119,12 +117,7 @@ public class IpoService {
         );
     }
 
-    private List<String> leadManagerNames(IpoDetailProjection ipo, List<IpoLeadManager> leadManagers) {
-        if (leadManagers != null && !leadManagers.isEmpty()) {
-            return leadManagers.stream()
-                    .map(IpoLeadManager::getManagerName)
-                    .toList();
-        }
+    private List<String> leadManagerNames(IpoDetailProjection ipo) {
         if (ipo.getUnderwriter() == null || ipo.getUnderwriter().isBlank()) {
             return Collections.emptyList();
         }

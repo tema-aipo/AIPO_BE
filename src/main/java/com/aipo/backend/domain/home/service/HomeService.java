@@ -4,9 +4,7 @@ import com.aipo.backend.domain.home.dto.*;
 import com.aipo.backend.domain.home.type.HomeTab;
 import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
 import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
-import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
 import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
-import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.service.AttractivenessService;
 import lombok.RequiredArgsConstructor;
@@ -16,14 +14,13 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-@Service // 비즈니스 로직 처리 계층
+@Service // ??쑴已??됰뮞 嚥≪뮇彛?筌ｌ꼶???④쑴留?
 @RequiredArgsConstructor
 public class HomeService {
 
@@ -33,25 +30,13 @@ public class HomeService {
     private final IpoStockRepository ipoStockRepository;
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
     private final AttractivenessService attractivenessService;
-    private final IpoLeadManagerRepository ipoLeadManagerRepository; // 추가
 
     public HomeResponse getHome(String tabValue, Long userId) {
-        // 요청 파라미터 문자열을 enum으로 변환
         HomeTab tab = HomeTab.from(tabValue);
+        List<FeaturedIpoItem> featured = getFeaturedIpos(userId);
+        List<TrendingIpoItem> trending = applyTrendingRank(ipoStockRepository.findTrendingIpos());
+        List<AttractivenessItem> attractivenessItems = getAttractivenessItems(tab, userId);
 
-        // 홈 상단 대표 공모주 조회 후 순위 부여
-        List<FeaturedIpoItem> featured =
-                getFeaturedIpos(userId);
-
-        // 실시간 조회 급등 조회 후 순위 부여
-        List<TrendingIpoItem> trending =
-                applyTrendingRank(ipoStockRepository.findTrendingIpos());
-
-        // 탭에 따라 매력지수 리스트 조회
-        List<AttractivenessItem> attractivenessItems =
-                getAttractivenessItems(tab, userId);
-
-        // 홈 화면 전체 응답 조합
         return new HomeResponse(
                 featured,
                 trending,
@@ -60,7 +45,7 @@ public class HomeService {
     }
 
     private List<AttractivenessItem> getAttractivenessItems(HomeTab tab, Long userId) {
-        // 선택된 탭에 따라 다른 조회 메서드 호출
+        // ?醫뤾문????肉??怨뺤뵬 ??삘뀲 鈺곌퀬??筌롫뗄苑???紐꾪뀱
         List<AttractivenessItem> items = switch (tab) {
             case RECENT_GROWTH -> ipoStockRepository.findAttractivenessByRecentGrowth();
             case SUBSCRIPTION_UPCOMING -> ipoStockRepository.findAttractivenessBySubscriptionUpcoming();
@@ -70,24 +55,14 @@ public class HomeService {
         items = sortAndLimitItems(tab, items);
         if (items.isEmpty()) return items;
 
-        // 배치 조회: 종목 ID 목록으로 주관사 한 번에 로드
+        // 獄쏄퀣??鈺곌퀬?? ?ル굝??ID 筌뤴뫖以??곗쨮 雅뚯눊?????甕곕뜆肉?嚥≪뮆諭?
         List<Long> stockIds = items.stream().map(AttractivenessItem::ipoId).toList();
-        List<IpoLeadManager> managers = ipoLeadManagerRepository.findAllByStock_IdIn(stockIds);
+        Map<Long, String> leadManagerMap = ipoStockRepository.findUnderwritersByStockIds(stockIds)
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> firstUnderwriter(entry.getValue())));
 
-        // stockId → 첫 번째 주관사명 매핑 (displayOrder 최솟값)
-        Map<Long, String> leadManagerMap = new HashMap<>(managers.stream()
-                .filter(manager -> hasTextValue(manager.getManagerName()))
-                .collect(Collectors.toMap(
-                        m -> m.getStock().getId(),
-                        manager -> manager.getManagerName().trim(),
-                        (existing, replacement) -> existing  // 중복 시 첫 번째 유지
-                )));
-
-        // 기존 items에 leadManager 주입하여 새 객체 생성
-        ipoStockRepository.findUnderwritersByStockIds(stockIds)
-                .forEach((stockId, underwriter) ->
-                        leadManagerMap.putIfAbsent(stockId, firstUnderwriter(underwriter)));
-
+        // stockId ??筌?甕곕뜆??雅뚯눊???梨?筌띲끋釉?(displayOrder 筌ㅼ뮇?뽩첎?
         Map<Long, Integer> scoreByStockId = calculateHomeScores(items, currentProfileType(userId));
 
         return items.stream()
@@ -286,7 +261,7 @@ public class HomeService {
     }
 
     private List<FeaturedIpoItem> applyFeaturedRank(List<FeaturedIpoItem> items) {
-        // 조회 결과에 1,2,3... 순위를 붙여서 새 객체로 반환
+        // 鈺곌퀬??野껉퀗???1,2,3... ??뽰맄???븐늿肉????揶쏆빘猿쒏에?獄쏆꼹??
         return IntStream.range(0, items.size())
                 .mapToObj(i -> new FeaturedIpoItem(
                         items.get(i).ipoId(),
@@ -298,7 +273,7 @@ public class HomeService {
     }
 
     private List<TrendingIpoItem> applyTrendingRank(List<TrendingIpoItem> items) {
-        // 급등 결과에도 1,2,3... 순위를 붙여서 반환
+        // 疫뀀맧踰?野껉퀗??癒?즲 1,2,3... ??뽰맄???븐늿肉??獄쏆꼹??
         return IntStream.range(0, items.size())
                 .mapToObj(i -> new TrendingIpoItem(
                         items.get(i).ipoId(),

@@ -3,19 +3,13 @@ package com.aipo.backend.domain.external.common.service;
 import com.aipo.backend.domain.external.common.dto.ExternalIpoSourceDataCommand;
 import com.aipo.backend.domain.external.common.entity.IpoExternalSourceData;
 import com.aipo.backend.domain.external.common.repository.IpoExternalSourceDataRepository;
-import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
-import com.aipo.backend.domain.ipo.entity.IpoSchedule;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
-import com.aipo.backend.domain.ipo.entity.ScheduleType;
-import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
-import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -26,8 +20,6 @@ public class IpoExternalSourceDataService {
 
     private final IpoExternalSourceDataRepository sourceDataRepository;
     private final IpoStockRepository ipoStockRepository;
-    private final IpoLeadManagerRepository ipoLeadManagerRepository;
-    private final IpoScheduleRepository ipoScheduleRepository;
 
     public IpoExternalSourceData upsert(ExternalIpoSourceDataCommand command) {
         IpoExternalSourceData sourceData = sourceDataRepository
@@ -121,14 +113,8 @@ public class IpoExternalSourceDataService {
             return null;
         }
         stock.supplementFromKind(stockCode, marketType, listingDate);
-
-        upsertSchedule(stock, ScheduleType.SUBSCRIPTION_START, subscriptionStartDate, "MERGED subscription start");
-        upsertSchedule(stock, ScheduleType.SUBSCRIPTION_END, subscriptionEndDate, "MERGED subscription end");
-        upsertSchedule(stock, ScheduleType.DEMAND_FORECAST_START, demandForecastStartDate, "MERGED demand forecast start");
-        upsertSchedule(stock, ScheduleType.DEMAND_FORECAST_END, demandForecastEndDate, "MERGED demand forecast end");
-        upsertSchedule(stock, ScheduleType.REFUND, refundDate, "MERGED refund");
-        upsertSchedule(stock, ScheduleType.LISTING, listingDate, "MERGED listing");
-        replaceLeadManagers(stock, leadManagers);
+        stock.updateSupplementalDates(demandForecastStartDate, demandForecastEndDate, refundDate, listingDate);
+        stock.updateUnderwriter(leadManagers);
 
         return stock;
     }
@@ -174,39 +160,6 @@ public class IpoExternalSourceDataService {
                 subscriptionStartDate,
                 subscriptionEndDate
         ));
-    }
-
-    private void upsertSchedule(IpoStock stock, ScheduleType scheduleType, LocalDate date, String note) {
-        if (stock == null || date == null) {
-            return;
-        }
-
-        ipoScheduleRepository.findByStock_IdAndScheduleType(stock.getId(), scheduleType)
-                .ifPresentOrElse(
-                        schedule -> schedule.updateDate(date, note),
-                        () -> ipoScheduleRepository.save(IpoSchedule.create(stock, scheduleType, date, note))
-                );
-    }
-
-    private void replaceLeadManagers(IpoStock stock, String leadManagers) {
-        if (stock == null || leadManagers == null || leadManagers.isBlank()) {
-            return;
-        }
-
-        List<String> managerNames = Arrays.stream(leadManagers.split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .distinct()
-                .toList();
-        if (managerNames.isEmpty()) {
-            return;
-        }
-
-        ipoLeadManagerRepository.deleteAllByStock_Id(stock.getId());
-        ipoLeadManagerRepository.flush();
-        for (int i = 0; i < managerNames.size(); i++) {
-            ipoLeadManagerRepository.save(IpoLeadManager.create(stock, managerNames.get(i), i + 1));
-        }
     }
 
     private String firstNonBlank(List<String> values) {

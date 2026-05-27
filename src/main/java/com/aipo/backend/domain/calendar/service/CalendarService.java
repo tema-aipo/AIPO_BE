@@ -7,11 +7,9 @@ import com.aipo.backend.domain.calendar.dto.SelectedDateCompanyItem;
 import com.aipo.backend.domain.calendar.dto.SelectedDateSection;
 import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
 import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
-import com.aipo.backend.domain.ipo.entity.IpoLeadManager;
 import com.aipo.backend.domain.ipo.entity.ScheduleType;
 import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
 import com.aipo.backend.domain.ipo.repository.CalendarIpoProjection;
-import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.service.AttractivenessService;
 import com.aipo.backend.domain.ipo.service.IpoStockViewMapper;
@@ -28,7 +26,6 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +38,6 @@ import java.util.stream.Collectors;
 public class CalendarService {
 
     private final IpoStockRepository ipoStockRepository;
-    private final IpoLeadManagerRepository ipoLeadManagerRepository;
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
     private final AttractivenessService attractivenessService;
 
@@ -183,20 +179,10 @@ public class CalendarService {
             return Map.of();
         }
 
-        List<IpoLeadManager> managers = ipoLeadManagerRepository.findAllByStock_IdIn(stockIds);
-        Map<Long, String> leadManagerMap = new HashMap<>(managers.stream()
-                .filter(manager -> hasTextValue(manager.getManagerName()))
-                .collect(Collectors.toMap(
-                        manager -> manager.getStock().getId(),
-                        manager -> manager.getManagerName().trim(),
-                        (existing, replacement) -> existing
-                )));
-
-        ipoStockRepository.findUnderwritersByStockIds(stockIds)
-                .forEach((stockId, underwriter) ->
-                        leadManagerMap.putIfAbsent(stockId, firstUnderwriter(underwriter)));
-
-        return leadManagerMap;
+        return ipoStockRepository.findUnderwritersByStockIds(stockIds)
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> firstUnderwriter(entry.getValue())));
     }
 
     private String firstUnderwriter(String underwriter) {

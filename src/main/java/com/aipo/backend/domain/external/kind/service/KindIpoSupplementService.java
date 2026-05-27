@@ -6,10 +6,7 @@ import com.aipo.backend.domain.external.kind.client.KindClient;
 import com.aipo.backend.domain.external.kind.dto.KindIpoSupplementResult;
 import com.aipo.backend.domain.external.opendart.entity.ExternalApiResponse;
 import com.aipo.backend.domain.external.opendart.repository.ExternalApiResponseRepository;
-import com.aipo.backend.domain.ipo.entity.IpoSchedule;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
-import com.aipo.backend.domain.ipo.entity.ScheduleType;
-import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
@@ -24,7 +21,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -44,7 +40,6 @@ public class KindIpoSupplementService {
     private final KindClient kindClient;
     private final ExternalApiResponseRepository externalApiResponseRepository;
     private final IpoStockRepository ipoStockRepository;
-    private final IpoScheduleRepository ipoScheduleRepository;
     private final IpoExternalSourceDataService ipoExternalSourceDataService;
 
     @Transactional
@@ -102,11 +97,13 @@ public class KindIpoSupplementService {
                     90
             ));
             stock.supplementFromKind(data.stockCode(), data.marketType(), data.listingDate());
+            stock.updateSupplementalDates(data.demandForecastStartDate(), data.demandForecastEndDate(), null, data.listingDate());
             counter.supplementedStockCount++;
-
-            counter.supplementedScheduleCount += upsertSchedule(stock, ScheduleType.DEMAND_FORECAST_START, data.demandForecastStartDate(), "KIND 수요예측 시작일");
-            counter.supplementedScheduleCount += upsertSchedule(stock, ScheduleType.DEMAND_FORECAST_END, data.demandForecastEndDate(), "KIND 수요예측 종료일");
-            counter.supplementedScheduleCount += upsertSchedule(stock, ScheduleType.LISTING, data.listingDate(), "KIND 상장일");
+            counter.supplementedScheduleCount += countPresent(
+                    data.demandForecastStartDate(),
+                    data.demandForecastEndDate(),
+                    data.listingDate()
+            );
             if (stock.getDartCorpCode() != null && !stock.getDartCorpCode().isBlank()) {
                 ipoExternalSourceDataService.mergeByDartCorpCode(stock.getDartCorpCode());
             }
@@ -230,18 +227,14 @@ public class KindIpoSupplementService {
         return new ArrayList<>(dates);
     }
 
-    private int upsertSchedule(IpoStock stock, ScheduleType scheduleType, LocalDate date, String note) {
-        if (date == null) {
-            return 0;
+    private int countPresent(LocalDate... dates) {
+        int count = 0;
+        for (LocalDate date : dates) {
+            if (date != null) {
+                count++;
+            }
         }
-
-        Optional<IpoSchedule> existing = ipoScheduleRepository.findByStock_IdAndScheduleType(stock.getId(), scheduleType);
-        if (existing.isPresent()) {
-            existing.get().updateDate(date, note);
-        } else {
-            ipoScheduleRepository.save(IpoSchedule.create(stock, scheduleType, date, note));
-        }
-        return 1;
+        return count;
     }
 
     private CachedBody getCachedOrFetch(String apiName, String requestKey, Supplier<String> fetcher) {

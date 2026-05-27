@@ -61,6 +61,9 @@ public class IpoStock {
     @Column(name = "refund_date", length = 50)
     private String refundDate;
 
+    @Column(name = "underwriter", length = 255)
+    private String underwriter;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -131,6 +134,33 @@ public class IpoStock {
         if (listingDate != null) {
             this.listingDate = listingDate;
         }
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateSupplementalDates(
+            LocalDate demandForecastStartDate,
+            LocalDate demandForecastEndDate,
+            LocalDate refundDate,
+            LocalDate listingDate
+    ) {
+        String resolvedDemandForecastDate = formatDateRange(demandForecastStartDate, demandForecastEndDate);
+        if (resolvedDemandForecastDate != null) {
+            this.demandForecastDate = resolvedDemandForecastDate;
+        }
+        if (refundDate != null) {
+            this.refundDate = refundDate.toString();
+        }
+        if (listingDate != null) {
+            this.listingDate = listingDate;
+        }
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateUnderwriter(String underwriter) {
+        if (underwriter == null || underwriter.isBlank()) {
+            return;
+        }
+        this.underwriter = underwriter.trim();
         this.updatedAt = LocalDateTime.now();
     }
 

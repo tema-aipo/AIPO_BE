@@ -28,10 +28,8 @@ public class FavoriteService {
 
     private final IpoStockRepository ipoStockRepository;
     private final UserFavoriteStockRepository userFavoriteStockRepository;
-    private final IpoLeadManagerRepository ipoLeadManagerRepository;
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
     private final AttractivenessService attractivenessService;
-    private final IpoScheduleRepository ipoScheduleRepository; // 추가
 
     public List<FavoriteStockResponse> getFavorites(Long userId) {
         List<UserFavoriteStock> favorites = userFavoriteStockRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
@@ -43,21 +41,7 @@ public class FavoriteService {
                 .map(f -> f.getStock().getId())
                 .toList();
 
-        // 1. Batch load lead managers
-        List<IpoLeadManager> managers = ipoLeadManagerRepository.findAllByStock_IdIn(stockIds);
-        Map<Long, List<IpoLeadManager>> managersByStockId = managers.stream()
-                .collect(Collectors.groupingBy(m -> m.getStock().getId()));
         Map<Long, String> underwritersByStockId = ipoStockRepository.findUnderwritersByStockIds(stockIds);
-
-        // 2. Batch load refund schedules
-        List<IpoSchedule> refundSchedules = ipoScheduleRepository
-                .findAllByStock_IdInAndScheduleType(stockIds, ScheduleType.REFUND);
-        Map<Long, java.time.LocalDate> refundDateByStockId = refundSchedules.stream()
-                .collect(Collectors.toMap(
-                        s -> s.getStock().getId(),
-                        IpoSchedule::getScheduleDate,
-                        (a, b) -> a
-                ));
         Map<Long, Integer> scoreByStockId = calculateFavoriteScores(
                 favorites,
                 currentProfileType(userId)
@@ -66,9 +50,7 @@ public class FavoriteService {
         return favorites.stream()
                 .map(favoriteStock -> toResponse(
                         favoriteStock,
-                        managersByStockId,
                         underwritersByStockId,
-                        refundDateByStockId,
                         scoreByStockId
                 ))
                 .toList();
@@ -76,9 +58,7 @@ public class FavoriteService {
 
     private FavoriteStockResponse toResponse(
             UserFavoriteStock favoriteStock,
-            Map<Long, List<IpoLeadManager>> managersByStockId,
             Map<Long, String> underwritersByStockId,
-            Map<Long, java.time.LocalDate> refundDateByStockId,
             Map<Long, Integer> scoreByStockId
     ) {
         IpoStock stock = favoriteStock.getStock();
@@ -88,13 +68,7 @@ public class FavoriteService {
         Integer fallbackScore = stock.getAttractScore() == null ? null : Math.round(stock.getAttractScore());
         Integer score = scoreByStockId.getOrDefault(stockId, fallbackScore);
 
-        // 2. Lead Manager
-        List<IpoLeadManager> stockManagers = managersByStockId.getOrDefault(stockId, Collections.emptyList());
-        String leadManager = stockManagers.stream()
-                .map(IpoLeadManager::getManagerName)
-                .filter(this::hasTextValue)
-                .findFirst()
-                .orElseGet(() -> firstUnderwriter(underwritersByStockId.get(stockId)));
+        String leadManager = firstUnderwriter(underwritersByStockId.get(stockId));
 
         // 3. Status and DateRange
         String status = null;
@@ -104,18 +78,18 @@ public class FavoriteService {
         java.time.LocalDate subStart = stock.getSubscriptionStartDate();
         java.time.LocalDate subEnd = stock.getSubscriptionEndDate();
         java.time.LocalDate listDate = stock.getListingDate();
-        java.time.LocalDate refundDate = refundDateByStockId.get(stockId);
+        java.time.LocalDate refundDate = IpoStockViewMapper.parseDateText(stock.getRefundDate(), 0);
 
         if (listDate != null && (today.isEqual(listDate) || today.isAfter(listDate))) {
-            status = "상장";
+            status = "\uC0C1\uC7A5";
             dateRange = String.format("%02d.%02d", listDate.getMonthValue(), listDate.getDayOfMonth());
         } else if (subStart != null && subEnd != null && (today.isEqual(subStart) || today.isEqual(subEnd) || (today.isAfter(subStart) && today.isBefore(subEnd)))) {
-            status = "청약";
+            status = "\uCCAD\uC57D";
             dateRange = String.format("%02d.%02d ~ %02d.%02d",
                     subStart.getMonthValue(), subStart.getDayOfMonth(),
                     subEnd.getMonthValue(), subEnd.getDayOfMonth());
         } else if (subStart != null && today.isBefore(subStart)) {
-            status = "수요예측";
+            status = "\uC218\uC694\uC608\uCE21";
             if (subEnd != null) {
                 dateRange = String.format("%02d.%02d ~ %02d.%02d",
                         subStart.getMonthValue(), subStart.getDayOfMonth(),
@@ -124,10 +98,10 @@ public class FavoriteService {
                 dateRange = String.format("%02d.%02d", subStart.getMonthValue(), subStart.getDayOfMonth());
             }
         } else if (refundDate != null && today.isEqual(refundDate)) {
-            status = "환불";
+            status = "\uD658\uBD88";
             dateRange = String.format("%02d.%02d", refundDate.getMonthValue(), refundDate.getDayOfMonth());
         } else if (subStart != null && subEnd != null && today.isAfter(subEnd)) {
-            status = "청약종료";
+            status = "\uCCAD\uC57D\uC885\uB8CC";
             dateRange = String.format("%02d.%02d ~ %02d.%02d",
                     subStart.getMonthValue(), subStart.getDayOfMonth(),
                     subEnd.getMonthValue(), subEnd.getDayOfMonth());

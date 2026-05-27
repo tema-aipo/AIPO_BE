@@ -3,8 +3,6 @@ package com.aipo.backend.domain.user.service;
 import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.UserFavoriteStock;
-import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
-import com.aipo.backend.domain.ipo.repository.IpoScheduleRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.repository.UserFavoriteStockRepository;
 import com.aipo.backend.domain.ipo.service.AttractivenessService;
@@ -42,13 +40,6 @@ class FavoriteServiceTest {
 
     @Mock
     private UserFavoriteStockRepository userFavoriteStockRepository;
-
-    @Mock
-    private IpoLeadManagerRepository ipoLeadManagerRepository;
-
-    @Mock
-    private IpoScheduleRepository ipoScheduleRepository;
-
     @Mock
     private UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
 
@@ -83,10 +74,6 @@ class FavoriteServiceTest {
                 favorite(userId, firstStock, LocalDateTime.of(2026, 4, 21, 10, 0)),
                 favorite(userId, secondStock, LocalDateTime.of(2026, 4, 20, 10, 0))
         ));
-
-        when(ipoLeadManagerRepository.findAllByStock_IdIn(any())).thenReturn(List.of());
-        when(ipoScheduleRepository.findAllByStock_IdInAndScheduleType(any(), any())).thenReturn(List.of());
-
         List<FavoriteStockResponse> responses = favoriteService.getFavorites(userId);
 
         assertThat(responses).hasSize(2);
@@ -101,10 +88,7 @@ class FavoriteServiceTest {
         assertThat(responses.get(0).status()).isNotNull();
         assertThat(responses.get(0).dateRange()).isNotNull();
         assertThat(responses.get(1).ipoId()).isEqualTo(2L);
-        verify(userFavoriteStockRepository).findAllByUserIdOrderByCreatedAtDesc(userId);
-        verify(ipoLeadManagerRepository).findAllByStock_IdIn(any());
-        verify(ipoScheduleRepository).findAllByStock_IdInAndScheduleType(any(), any());
-    }
+        verify(userFavoriteStockRepository).findAllByUserIdOrderByCreatedAtDesc(userId);    }
 
     @Test
     @DisplayName("관심종목이 없으면 빈 리스트를 반환한다")

@@ -6,7 +6,6 @@ import com.aipo.backend.domain.home.dto.FeaturedIpoItem;
 import com.aipo.backend.domain.home.dto.HomeResponse;
 import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
 import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
-import com.aipo.backend.domain.ipo.repository.IpoLeadManagerRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.service.AttractivenessService;
 import org.junit.jupiter.api.Test;
@@ -30,9 +29,6 @@ class HomeServiceTest {
     @Mock
     private UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
 
-    @Mock
-    private IpoLeadManagerRepository ipoLeadManagerRepository;
-
     private final AttractivenessService attractivenessService = new AttractivenessService();
 
     @Test
@@ -40,8 +36,7 @@ class HomeServiceTest {
         HomeService homeService = new HomeService(
                 ipoStockRepository,
                 userInvestmentProfileResultRepository,
-                attractivenessService,
-                ipoLeadManagerRepository
+                attractivenessService
         );
         LocalDate today = LocalDate.now();
         AttractivenessItem past = item(1L, "past", today.minusDays(10), today.minusDays(8));
@@ -53,7 +48,6 @@ class HomeServiceTest {
         when(ipoStockRepository.findTrendingIpos()).thenReturn(List.of());
         when(ipoStockRepository.findAttractivenessBySubscriptionUpcoming())
                 .thenReturn(List.of(past, futureLater, active, futureSoon));
-        when(ipoLeadManagerRepository.findAllByStock_IdIn(List.of(3L, 4L, 2L))).thenReturn(List.of());
         when(ipoStockRepository.findUnderwritersByStockIds(List.of(3L, 4L, 2L))).thenReturn(Map.of());
 
         HomeResponse response = homeService.getHome("subscriptionUpcoming", null);
@@ -69,8 +63,7 @@ class HomeServiceTest {
         HomeService homeService = new HomeService(
                 ipoStockRepository,
                 userInvestmentProfileResultRepository,
-                attractivenessService,
-                ipoLeadManagerRepository
+                attractivenessService
         );
         LocalDate today = LocalDate.now();
 

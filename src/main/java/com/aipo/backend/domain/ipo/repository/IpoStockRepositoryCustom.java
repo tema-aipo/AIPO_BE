@@ -1,6 +1,7 @@
 package com.aipo.backend.domain.ipo.repository;
 
 import com.aipo.backend.domain.home.dto.AttractivenessItem;
+import com.aipo.backend.domain.home.dto.FeaturedIpoCandidate;
 import com.aipo.backend.domain.home.dto.FeaturedIpoItem;
 import com.aipo.backend.domain.home.dto.TrendingIpoItem;
 import com.aipo.backend.domain.ipo.dto.IpoListItem;
@@ -13,6 +14,8 @@ public interface IpoStockRepositoryCustom {
 
     // 홈 상단 대표 공모주 조회
     List<FeaturedIpoItem> findFeaturedIpos();
+
+    List<FeaturedIpoCandidate> findFeaturedIpoCandidates();
 
     // 실시간 조회 급등 조회
     List<TrendingIpoItem> findTrendingIpos();

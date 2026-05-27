@@ -14,6 +14,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -37,7 +38,7 @@ public class HomeService {
 
         // 홈 상단 대표 공모주 조회 후 순위 부여
         List<FeaturedIpoItem> featured =
-                applyFeaturedRank(ipoStockRepository.findFeaturedIpos());
+                getFeaturedIpos(userId);
 
         // 실시간 조회 급등 조회 후 순위 부여
         List<TrendingIpoItem> trending =
@@ -140,6 +141,65 @@ public class HomeService {
             return today;
         }
         return startDate;
+    }
+
+    private List<FeaturedIpoItem> getFeaturedIpos(Long userId) {
+        List<FeaturedIpoCandidate> candidates = ipoStockRepository.findFeaturedIpoCandidates();
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Integer> scoreByStockId = calculateHomeScores(
+                candidates.stream()
+                        .map(this::toAttractivenessItem)
+                        .toList(),
+                currentProfileType(userId)
+        );
+        LocalDate today = LocalDate.now();
+
+        List<FeaturedIpoItem> featured = candidates.stream()
+                .sorted(Comparator
+                        .comparing((FeaturedIpoCandidate candidate) ->
+                                scoreByStockId.getOrDefault(candidate.ipoId(), 0), Comparator.reverseOrder())
+                        .thenComparing(FeaturedIpoCandidate::viewCount, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(candidate -> listingDatePriority(candidate.listingDate(), today))
+                        .thenComparing(FeaturedIpoCandidate::ipoId))
+                .limit(5)
+                .map(candidate -> new FeaturedIpoItem(
+                        candidate.ipoId(),
+                        0,
+                        candidate.name(),
+                        candidate.viewCount()
+                ))
+                .toList();
+
+        return applyFeaturedRank(featured);
+    }
+
+    private AttractivenessItem toAttractivenessItem(FeaturedIpoCandidate candidate) {
+        return new AttractivenessItem(
+                candidate.ipoId(),
+                candidate.name(),
+                0,
+                null,
+                null,
+                null,
+                null,
+                null,
+                candidate.listingDate()
+        );
+    }
+
+    private long listingDatePriority(LocalDate listingDate, LocalDate today) {
+        if (listingDate == null) {
+            return Long.MAX_VALUE;
+        }
+
+        long daysUntilListing = ChronoUnit.DAYS.between(today, listingDate);
+        if (daysUntilListing >= 0) {
+            return daysUntilListing;
+        }
+        return 1_000_000L + Math.abs(daysUntilListing);
     }
 
     private InvestmentProfileType currentProfileType(Long userId) {

@@ -1,6 +1,7 @@
 package com.aipo.backend.domain.ipo.repository;
 
 import com.aipo.backend.domain.home.dto.AttractivenessItem;
+import com.aipo.backend.domain.home.dto.FeaturedIpoCandidate;
 import com.aipo.backend.domain.home.dto.FeaturedIpoItem;
 import com.aipo.backend.domain.home.dto.TrendingIpoItem;
 import com.aipo.backend.domain.ipo.dto.IpoListItem;
@@ -26,26 +27,39 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
 
     @Override
     public List<FeaturedIpoItem> findFeaturedIpos() {
+        return findFeaturedIpoCandidates().stream()
+                .limit(5)
+                .map(candidate -> new FeaturedIpoItem(
+                        candidate.ipoId(),
+                        0,
+                        candidate.name(),
+                        candidate.viewCount()
+                ))
+                .toList();
+    }
+
+    @Override
+    public List<FeaturedIpoCandidate> findFeaturedIpoCandidates() {
         return em.createNativeQuery("""
                 select
                     m.stock_id,
                     m.corp_name,
                     coalesce(m.corp_name, m.stock_code),
                     m.corp_name,
-                    count(v.view_log_id) as view_count
+                    count(v.view_log_id) as view_count,
+                    date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                 from ipo_main m
                 left join ipo_view_log v on v.stock_id = m.stock_id
-                group by m.stock_id, m.corp_name, m.stock_code,
+                group by m.stock_id, m.corp_name, m.stock_code, m.listing_date,
                     m.recent_growth_score, m.attract_score, m.created_at
                 order by count(v.view_log_id) desc,
                     coalesce(m.recent_growth_score, 0) desc,
                     coalesce(m.attract_score, 0) desc,
                     m.created_at desc
                 """)
-                .setMaxResults(5)
                 .getResultList()
                 .stream()
-                .map(row -> toFeaturedIpoItem((Object[]) row))
+                .map(row -> toFeaturedIpoCandidate((Object[]) row))
                 .toList();
     }
 
@@ -269,6 +283,15 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 0,
                 IpoStockViewMapper.displayName(toString(row[1]), toString(row[2]), toString(row[3])),
                 toLong(row[4])
+        );
+    }
+
+    private FeaturedIpoCandidate toFeaturedIpoCandidate(Object[] row) {
+        return new FeaturedIpoCandidate(
+                toLong(row[0]),
+                IpoStockViewMapper.displayName(toString(row[1]), toString(row[2]), toString(row[3])),
+                toLong(row[4]),
+                IpoStockViewMapper.parseIsoDate(toString(row[5]))
         );
     }
 

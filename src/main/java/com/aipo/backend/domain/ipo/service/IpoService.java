@@ -37,11 +37,8 @@ public class IpoService {
     private static final double CONSERVATIVE_REMAINING_WEIGHT = 0.95;
 
     private final IpoStockRepository ipoStockRepository;
-    private final IpoAttractionReasonRepository ipoAttractionReasonRepository;
     private final IpoDemandForecastRepository ipoDemandForecastRepository;
-    private final IpoSubscriptionCompetitionRepository ipoSubscriptionCompetitionRepository;
     private final IpoSubscriptionCompanyRepository ipoSubscriptionCompanyRepository;
-    private final IpoOfferingInfoRepository ipoOfferingInfoRepository;
     private final IpoViewLogRepository ipoViewLogRepository;
     private final UserFavoriteStockRepository userFavoriteStockRepository;
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
@@ -71,26 +68,21 @@ public class IpoService {
         ipoStockRepository.incrementRecentGrowthScore(ipoId);
         saveViewLog(ipoId, userId);
 
-        List<IpoAttractionReason> attractionReasons =
-                ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
         IpoDemandForecast demandForecast = ipoDemandForecastRepository.findByStock_Id(ipoId).orElse(null);
-        IpoSubscriptionCompetition subscriptionCompetition =
-                ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId).orElse(null);
         List<IpoSubscriptionCompany> depositInfos =
                 ipoSubscriptionCompanyRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
-        IpoOfferingInfo offeringInfo = ipoOfferingInfoRepository.findByStock_Id(ipoId).orElse(null);
         AttractivenessResponse attractiveness = buildAttractiveness(ipo, userId);
 
         return new IpoDetailResponse(
                 ipo.getStockId(),
                 buildSummary(ipo, userId),
-                buildAttraction(attractiveness, ipo.getAttractScore(), attractionReasons),
+                buildAttraction(attractiveness, ipo.getAttractScore()),
                 attractiveness,
                 buildDemandForecast(demandForecast),
-                buildSubscriptionCompetition(subscriptionCompetition),
+                buildSubscriptionCompetition(),
                 buildSchedule(ipo),
                 buildDepositInfos(depositInfos),
-                buildOfferingInfo(offeringInfo)
+                buildOfferingInfo()
         );
     }
 
@@ -129,8 +121,7 @@ public class IpoService {
 
     private AttractionSection buildAttraction(
             AttractivenessResponse attractiveness,
-            Float attractScore,
-            List<IpoAttractionReason> attractionReasons
+            Float attractScore
     ) {
         // 기존 상세 응답 호환 필드도 사용자 성향이 반영된 선택 매력지수로 내려준다.
         BigDecimal totalScore = attractiveness != null
@@ -138,17 +129,6 @@ public class IpoService {
                 : attractScore == null ? null : BigDecimal.valueOf(attractScore);
 
         List<AttractionReasonItem> reasons = buildFactorScoreReasons(attractiveness);
-        if (reasons.isEmpty()) {
-            reasons = attractionReasons == null
-                    ? Collections.emptyList()
-                    : attractionReasons.stream()
-                    .map(reason -> new AttractionReasonItem(
-                            reason.getDisplayOrder(),
-                            reason.getTitle(),
-                            reason.getDescription()
-                    ))
-                    .toList();
-        }
 
         return new AttractionSection(totalScore, reasons);
     }
@@ -305,27 +285,11 @@ public class IpoService {
         );
     }
 
-    private SubscriptionCompetitionSection buildSubscriptionCompetition(
-            IpoSubscriptionCompetition subscriptionCompetition
-    ) {
-        if (subscriptionCompetition == null) {
-            return new SubscriptionCompetitionSection(
-                    null,
-                    new CompetitionInfo(null, null),
-                    new CompetitionInfo(null, null)
-            );
-        }
-
+    private SubscriptionCompetitionSection buildSubscriptionCompetition() {
         return new SubscriptionCompetitionSection(
-                mapCompetitionTab(subscriptionCompetition.getDefaultTab()),
-                new CompetitionInfo(
-                        subscriptionCompetition.getEqualExpectedAllocationQuantity(),
-                        subscriptionCompetition.getEqualCompetitionRate()
-                ),
-                new CompetitionInfo(
-                        subscriptionCompetition.getProportionalExpectedAllocationQuantity(),
-                        subscriptionCompetition.getProportionalCompetitionRate()
-                )
+                null,
+                new CompetitionInfo(null, null),
+                new CompetitionInfo(null, null)
         );
     }
 
@@ -380,25 +344,8 @@ public class IpoService {
                 .toList();
     }
 
-    private OfferingInfoSection buildOfferingInfo(IpoOfferingInfo offeringInfo) {
-        if (offeringInfo == null) {
-            return new OfferingInfoSection(null, null, null, null);
-        }
-
-        return new OfferingInfoSection(
-                offeringInfo.getMarketCap(),
-                offeringInfo.getEqualAllocationRatio(),
-                offeringInfo.getCirculatingRatio(),
-                offeringInfo.getOldShareSaleRatio()
-        );
-    }
-
-    private CompetitionTab mapCompetitionTab(CompetitionTabType competitionTabType) {
-        if (competitionTabType == null) {
-            return null;
-        }
-
-        return CompetitionTab.valueOf(competitionTabType.name());
+    private OfferingInfoSection buildOfferingInfo() {
+        return new OfferingInfoSection(null, null, null, null);
     }
 
     private int normalizeSize(int size) {

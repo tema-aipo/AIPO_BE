@@ -139,34 +139,6 @@ CREATE TABLE IF NOT EXISTS ipo_main (
 );
 
 
-CREATE TABLE IF NOT EXISTS ipo_attraction_score (
-    score_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id INT UNSIGNED NOT NULL,
-    total_score INT NOT NULL,
-    financial_score INT,
-    demand_score INT,
-    market_score INT,
-    score_comment TEXT,
-    calculated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (score_id),
-    CONSTRAINT fk_ipo_attraction_score_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
-);
-
-CREATE TABLE IF NOT EXISTS ipo_attraction_reason (
-    reason_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id INT UNSIGNED NOT NULL,
-    title VARCHAR(100) NOT NULL,
-    description TEXT NOT NULL,
-    display_order INT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (reason_id),
-    CONSTRAINT uk_ipo_attraction_reason_stock_order UNIQUE (stock_id, display_order),
-    CONSTRAINT fk_ipo_attraction_reason_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
-);
-
 CREATE TABLE IF NOT EXISTS ipo_demand_forecast (
     forecast_id BIGINT GENERATED ALWAYS AS IDENTITY,
     stock_id INT UNSIGNED NOT NULL,
@@ -185,22 +157,6 @@ CREATE TABLE IF NOT EXISTS ipo_demand_forecast (
         FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
-CREATE TABLE IF NOT EXISTS ipo_subscription_competition (
-    competition_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id INT UNSIGNED NOT NULL,
-    default_tab VARCHAR(20),
-    equal_expected_allocation_quantity NUMERIC(10,2),
-    equal_competition_rate NUMERIC(10,2),
-    proportional_expected_allocation_quantity NUMERIC(10,2),
-    proportional_competition_rate NUMERIC(10,2),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (competition_id),
-    CONSTRAINT uk_ipo_subscription_competition_stock UNIQUE (stock_id),
-    CONSTRAINT fk_ipo_subscription_competition_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
-);
-
 CREATE TABLE IF NOT EXISTS ipo_subscription_company (
     subscription_company_id BIGINT GENERATED ALWAYS AS IDENTITY,
     stock_id INT UNSIGNED NOT NULL,
@@ -216,36 +172,6 @@ CREATE TABLE IF NOT EXISTS ipo_subscription_company (
         FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
 );
 
-
-CREATE TABLE IF NOT EXISTS ipo_deposit_info (
-    deposit_info_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id INT UNSIGNED NOT NULL,
-    securities_company_name VARCHAR(100) NOT NULL,
-    amount_for_ten_shares NUMERIC(15,2),
-    display_order INT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (deposit_info_id),
-    CONSTRAINT uk_ipo_deposit_info_stock_company UNIQUE (stock_id, securities_company_name),
-    CONSTRAINT uk_ipo_deposit_info_stock_order UNIQUE (stock_id, display_order),
-    CONSTRAINT fk_ipo_deposit_info_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
-);
-
-CREATE TABLE IF NOT EXISTS ipo_offering_info (
-    offering_info_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    stock_id INT UNSIGNED NOT NULL,
-    market_cap NUMERIC(20,2),
-    equal_allocation_ratio NUMERIC(5,2),
-    circulating_ratio NUMERIC(5,2),
-    old_share_sale_ratio NUMERIC(5,2),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (offering_info_id),
-    CONSTRAINT uk_ipo_offering_info_stock UNIQUE (stock_id),
-    CONSTRAINT fk_ipo_offering_info_stock
-        FOREIGN KEY (stock_id) REFERENCES ipo_main(stock_id)
-);
 
 CREATE TABLE IF NOT EXISTS user_favorite_stock (
     favorite_id BIGINT GENERATED ALWAYS AS IDENTITY,
@@ -355,13 +281,8 @@ DELETE FROM investment_profile_question;
 DELETE FROM user_notification_setting;
 DELETE FROM ipo_view_log;
 DELETE FROM user_favorite_stock;
-DELETE FROM ipo_deposit_info;
 DELETE FROM ipo_subscription_company;
-DELETE FROM ipo_subscription_competition;
 DELETE FROM ipo_demand_forecast;
-DELETE FROM ipo_attraction_reason;
-DELETE FROM ipo_attraction_score;
-DELETE FROM ipo_offering_info;
 DELETE FROM user_refresh_token;
 DELETE FROM user_investment_type;
 DELETE FROM ipo_main;
@@ -466,25 +387,6 @@ INSERT INTO ipo_main (
         81, '2026-04-01 08:10:00', '2026-04-21 08:10:00'
     );
 
-INSERT INTO ipo_attraction_score (
-    score_id, stock_id, total_score, financial_score, demand_score, market_score, score_comment, calculated_at
-) OVERRIDING SYSTEM VALUE VALUES
-    (2001, 101, 82, 80, 83, 81, '珥덇린 ?곗텧 ?먯닔', '2026-04-10 09:00:00'),
-    (2002, 101, 88, 86, 90, 88, '?섏슂?덉륫 諛섏쁺 理쒖떊 ?먯닔', '2026-04-20 18:00:00'),
-    (2003, 102, 76, 74, 78, 75, '湲곌? ?섏슂?덉륫 諛섏쁺 ?먯닔', '2026-04-22 18:00:00'),
-    (2004, 103, 74, 72, 75, 73, '1李?怨꾩궛 ?먯닔', '2026-04-15 18:00:00'),
-    (2005, 103, 79, 77, 81, 79, '?쒖옣 諛섏쓳 諛섏쁺 理쒖떊 ?먯닔', '2026-04-27 18:00:00');
-
-INSERT INTO ipo_attraction_reason (
-    reason_id, stock_id, title, description, display_order, created_at, updated_at
-) OVERRIDING SYSTEM VALUE VALUES
-    (3001, 101, '?섏슂?덉륫 媛뺤꽭', '湲곌? 寃쎌웳瑜좉낵 ?곷떒 珥덇낵 鍮꾩쨷???믪븘 湲띿젙?곸엯?덈떎.', 1, '2026-04-20 18:10:00', '2026-04-20 18:10:00'),
-    (3002, 101, '?좏넻 臾쇰웾 遺???쒗븳', '?곸옣 吏곹썑 ?좏넻 媛??臾쇰웾 鍮꾩쑉????? ?몄엯?덈떎.', 2, '2026-04-20 18:11:00', '2026-04-20 18:11:00'),
-    (3003, 102, '吏꾨떒 ?쒖옣 ?깆옣??, '二쇱슂 ?ъ뾽 ?쒖옣 ?깆옣瑜좎씠 ?믪븘 ?깆옣 湲곕?媛 ?덉뒿?덈떎.', 1, '2026-04-22 18:10:00', '2026-04-22 18:10:00'),
-    (3004, 102, '湲곗닠 ?밸? 愿??, '湲곗닠 湲곕컲 ?곸옣 耳?댁뒪濡?愿?щ룄媛 ?믪뒿?덈떎.', 2, '2026-04-22 18:11:00', '2026-04-22 18:11:00'),
-    (3005, 103, '寃곗젣 SaaS 諛섎났 留ㅼ텧', '援щ룆??留ㅼ텧 援ъ“媛 ?덉젙?곸엯?덈떎.', 1, '2026-04-27 18:10:00', '2026-04-27 18:10:00'),
-    (3006, 103, '?대씪?곕뱶 ?뺤옣??, '???怨좉컼???뺤옣??湲곕??⑸땲??', 2, '2026-04-27 18:11:00', '2026-04-27 18:11:00');
-
 INSERT INTO ipo_demand_forecast (
     forecast_id, stock_id, institutional_competition_rate, participating_institution_count,
     above_upper_price_competition_rate, above_upper_price_institution_count,
@@ -495,16 +397,6 @@ INSERT INTO ipo_demand_forecast (
     (4002, 102, 845.32, 1875, 76.40, 1602, 61.20, 1204, 11.80, '2026-04-25 18:20:00', '2026-04-25 18:20:00'),
     (4003, 103, 978.44, 2102, 84.25, 1903, 70.10, 1420, 13.60, '2026-04-29 18:20:00', '2026-04-29 18:20:00');
 
-INSERT INTO ipo_subscription_competition (
-    competition_id, stock_id, default_tab,
-    equal_expected_allocation_quantity, equal_competition_rate,
-    proportional_expected_allocation_quantity, proportional_competition_rate,
-    created_at, updated_at
-) OVERRIDING SYSTEM VALUE VALUES
-    (5001, 101, 'EQUAL', 2.50, 150.25, 1.25, 320.75, '2026-04-21 10:00:00', '2026-04-21 10:00:00'),
-    (5002, 102, 'PROPORTIONAL', 1.80, 112.40, 0.92, 278.10, '2026-04-26 10:00:00', '2026-04-26 10:00:00'),
-    (5003, 103, 'EQUAL', 2.10, 134.80, 1.05, 301.45, '2026-04-29 10:00:00', '2026-04-29 10:00:00');
-
 INSERT INTO ipo_subscription_company (
     subscription_company_id, stock_id, securities_company_name,
     allocated_share_count, subscription_limit_share_count, note,
@@ -514,25 +406,6 @@ INSERT INTO ipo_subscription_company (
     (5502, 101, '?쒓뎅?ъ옄利앷텒', 80000, 2500, '?쇰컲 怨좉컼 ?쒕룄 湲곗?', 2, '2026-04-21 10:11:00', '2026-04-21 10:11:00'),
     (5503, 102, 'NH?ъ옄利앷텒', 90000, 3000, '???二쇨???, 1, '2026-04-26 10:10:00', '2026-04-26 10:10:00'),
     (5504, 103, 'KB利앷텒', 70000, 2000, '怨듬룞 二쇨???, 1, '2026-04-29 10:10:00', '2026-04-29 10:10:00');
-
-INSERT INTO ipo_deposit_info (
-    deposit_info_id, stock_id, securities_company_name, amount_for_ten_shares,
-    display_order, created_at, updated_at
-) OVERRIDING SYSTEM VALUE VALUES
-    (7001, 101, '誘몃옒?ъ옄利앷텒', 75000.00, 1, '2026-04-21 10:10:00', '2026-04-21 10:10:00'),
-    (7002, 101, '?쒓뎅?ъ옄利앷텒', 80000.00, 2, '2026-04-21 10:11:00', '2026-04-21 10:11:00'),
-    (7003, 102, 'NH?ъ옄利앷텒',   110000.00, 1, '2026-04-26 10:10:00', '2026-04-26 10:10:00'),
-    (7004, 102, '?좏븳?ъ옄利앷텒', 115000.00, 2, '2026-04-26 10:11:00', '2026-04-26 10:11:00'),
-    (7005, 103, 'KB利앷텒',        92500.00, 1, '2026-04-29 10:10:00', '2026-04-29 10:10:00'),
-    (7006, 103, '?쇱꽦利앷텒',      94000.00, 2, '2026-04-29 10:11:00', '2026-04-29 10:11:00');
-
-INSERT INTO ipo_offering_info (
-    offering_info_id, stock_id, market_cap, equal_allocation_ratio, circulating_ratio, old_share_sale_ratio,
-    created_at, updated_at
-) OVERRIDING SYSTEM VALUE VALUES
-    (8001, 101, 250000000000.00, 50.00, 18.40, 5.10, '2026-04-21 10:20:00', '2026-04-21 10:20:00'),
-    (8002, 102, 340000000000.00, 48.00, 22.10, 7.20, '2026-04-26 10:20:00', '2026-04-26 10:20:00'),
-    (8003, 103, 410000000000.00, 50.00, 19.80, 4.50, '2026-04-29 10:20:00', '2026-04-29 10:20:00');
 
 INSERT INTO user_favorite_stock (
     favorite_id, user_id, stock_id, display_order, alert_priority, alert_yn, created_at

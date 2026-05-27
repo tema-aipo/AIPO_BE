@@ -3,25 +3,17 @@ package com.aipo.backend.domain.ipo.service;
 import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
 import com.aipo.backend.domain.investmentprofile.entity.UserInvestmentProfileResult;
 import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
-import com.aipo.backend.domain.ipo.dto.CompetitionTab;
 import com.aipo.backend.domain.ipo.dto.IpoDetailResponse;
 import com.aipo.backend.domain.ipo.dto.IpoListItem;
 import com.aipo.backend.domain.ipo.dto.IpoListResponse;
-import com.aipo.backend.domain.ipo.entity.CompetitionTabType;
-import com.aipo.backend.domain.ipo.entity.IpoAttractionReason;
 import com.aipo.backend.domain.ipo.entity.IpoDemandForecast;
-import com.aipo.backend.domain.ipo.entity.IpoOfferingInfo;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
-import com.aipo.backend.domain.ipo.entity.IpoSubscriptionCompetition;
 import com.aipo.backend.domain.ipo.entity.IpoSubscriptionCompany;
 import com.aipo.backend.domain.ipo.entity.IpoViewLog;
 import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
-import com.aipo.backend.domain.ipo.repository.IpoAttractionReasonRepository;
 import com.aipo.backend.domain.ipo.repository.IpoDetailProjection;
 import com.aipo.backend.domain.ipo.repository.IpoDemandForecastRepository;
-import com.aipo.backend.domain.ipo.repository.IpoOfferingInfoRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
-import com.aipo.backend.domain.ipo.repository.IpoSubscriptionCompetitionRepository;
 import com.aipo.backend.domain.ipo.repository.IpoSubscriptionCompanyRepository;
 import com.aipo.backend.domain.ipo.repository.IpoViewLogRepository;
 import com.aipo.backend.domain.ipo.repository.UserFavoriteStockRepository;
@@ -41,7 +33,6 @@ import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -58,19 +49,10 @@ class IpoServiceTest {
     private IpoStockRepository ipoStockRepository;
 
     @Mock
-    private IpoAttractionReasonRepository ipoAttractionReasonRepository;
-
-    @Mock
     private IpoDemandForecastRepository ipoDemandForecastRepository;
 
     @Mock
-    private IpoSubscriptionCompetitionRepository ipoSubscriptionCompetitionRepository;
-
-    @Mock
     private IpoSubscriptionCompanyRepository ipoSubscriptionCompanyRepository;
-
-    @Mock
-    private IpoOfferingInfoRepository ipoOfferingInfoRepository;
 
     @Mock
     private IpoViewLogRepository ipoViewLogRepository;
@@ -142,20 +124,12 @@ class IpoServiceTest {
         when(ipoStockRepository.findDetailByStockId(ipoId))
                 .thenReturn(Optional.of(ipoDetailProjection(ipoStock, "LeadA, LeadB")));
         when(ipoStockRepository.getReferenceById(ipoId)).thenReturn(ipoStock);
-        when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
-                attractionReason(ipoStock, "수요예측 강세", "기관 경쟁률이 높습니다.", 1),
-                attractionReason(ipoStock, "유통물량 부담 적음", "상장 직후 유통 가능 물량이 제한적입니다.", 2)
-        ));
         when(ipoDemandForecastRepository.findByStock_Id(ipoId))
                 .thenReturn(Optional.of(demandForecast(ipoStock)));
-        when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId))
-                .thenReturn(Optional.of(subscriptionCompetition(ipoStock)));
         when(ipoSubscriptionCompanyRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
                 subscriptionCompany(ipoStock, "증권사A", 120000, 4000, "대표 주관사", 1),
                 subscriptionCompany(ipoStock, "증권사B", 80000, 2500, "공동 주관사", 2)
         ));
-        when(ipoOfferingInfoRepository.findByStock_Id(ipoId))
-                .thenReturn(Optional.of(offeringInfo(ipoStock)));
         when(userFavoriteStockRepository.existsByUserIdAndStock_Id(userId, ipoId)).thenReturn(true);
 
         IpoDetailResponse response = ipoService.getIpoDetail(ipoId, userId);
@@ -178,8 +152,8 @@ class IpoServiceTest {
                 .mapToInt(reason -> Integer.parseInt(reason.title().replaceAll(".* (\\d+)점", "$1")))
                 .sum()).isEqualTo(response.attraction().totalScore().intValue());
         assertThat(response.demandForecast().institutionalCompetitionRate()).isEqualByComparingTo("1234.56");
-        assertThat(response.subscriptionCompetition().defaultTab()).isEqualTo(CompetitionTab.EQUAL);
-        assertThat(response.subscriptionCompetition().equalAllocation().competitionRate()).isEqualByComparingTo("150.25");
+        assertThat(response.subscriptionCompetition().defaultTab()).isNull();
+        assertThat(response.subscriptionCompetition().equalAllocation().competitionRate()).isNull();
         assertThat(response.schedule().demandForecastPeriod().startDate()).isEqualTo(LocalDate.of(2026, 4, 20));
         assertThat(response.schedule().demandForecastPeriod().endDate()).isEqualTo(LocalDate.of(2026, 4, 21));
         assertThat(response.schedule().refundDate()).isEqualTo(LocalDate.of(2026, 5, 2));
@@ -189,7 +163,7 @@ class IpoServiceTest {
         assertThat(response.depositInfos().get(0).allocatedShareCount()).isEqualTo(120000);
         assertThat(response.depositInfos().get(0).subscriptionLimitShareCount()).isEqualTo(4000);
         assertThat(response.depositInfos().get(0).note()).isEqualTo("대표 주관사");
-        assertThat(response.offeringInfo().marketCap()).isEqualByComparingTo("250000000000.00");
+        assertThat(response.offeringInfo().marketCap()).isNull();
         verify(ipoStockRepository).incrementRecentGrowthScore(ipoId);
         ArgumentCaptor<IpoViewLog> viewLogCaptor = ArgumentCaptor.forClass(IpoViewLog.class);
         verify(ipoViewLogRepository).save(viewLogCaptor.capture());
@@ -250,11 +224,8 @@ class IpoServiceTest {
         );
 
         when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
-        when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
-        when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
-        when(ipoSubscriptionCompanyRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
-        when(ipoOfferingInfoRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
+        when(ipoSubscriptionCompanyRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of());
 
         IpoDetailResponse response = ipoService.getIpoDetail(ipoId, null);
 
@@ -289,11 +260,8 @@ class IpoServiceTest {
 
         when(ipoStockRepository.findDetailByStockId(ipoId))
                 .thenReturn(Optional.of(ipoDetailProjection(ipoStock, "한국투자증권, NH투자증권")));
-        when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
-        when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
-        when(ipoSubscriptionCompanyRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
-        when(ipoOfferingInfoRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
+        when(ipoSubscriptionCompanyRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of());
 
         IpoDetailResponse response = ipoService.getIpoDetail(ipoId, null);
 
@@ -432,11 +400,8 @@ class IpoServiceTest {
 
     private void stubDefaultDetailSources(Long ipoId, IpoStock ipoStock) {
         when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
-        when(ipoAttractionReasonRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
         when(ipoDemandForecastRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
-        when(ipoSubscriptionCompetitionRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
-        when(ipoSubscriptionCompanyRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(Collections.emptyList());
-        when(ipoOfferingInfoRepository.findByStock_Id(ipoId)).thenReturn(Optional.empty());
+        when(ipoSubscriptionCompanyRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of());
     }
 
     private IpoStock ipoStock(
@@ -493,22 +458,6 @@ class IpoServiceTest {
         return date == null ? null : date.toString();
     }
 
-    private IpoAttractionReason attractionReason(
-            IpoStock ipoStock,
-            String title,
-            String description,
-            int displayOrder
-    ) {
-        IpoAttractionReason reason = instantiate(IpoAttractionReason.class);
-        ReflectionTestUtils.setField(reason, "stock", ipoStock);
-        ReflectionTestUtils.setField(reason, "title", title);
-        ReflectionTestUtils.setField(reason, "description", description);
-        ReflectionTestUtils.setField(reason, "displayOrder", displayOrder);
-        ReflectionTestUtils.setField(reason, "createdAt", LocalDateTime.now());
-        ReflectionTestUtils.setField(reason, "updatedAt", LocalDateTime.now());
-        return reason;
-    }
-
     private IpoDemandForecast demandForecast(IpoStock ipoStock) {
         IpoDemandForecast demandForecast = instantiate(IpoDemandForecast.class);
         ReflectionTestUtils.setField(demandForecast, "stock", ipoStock);
@@ -522,19 +471,6 @@ class IpoServiceTest {
         ReflectionTestUtils.setField(demandForecast, "createdAt", LocalDateTime.now());
         ReflectionTestUtils.setField(demandForecast, "updatedAt", LocalDateTime.now());
         return demandForecast;
-    }
-
-    private IpoSubscriptionCompetition subscriptionCompetition(IpoStock ipoStock) {
-        IpoSubscriptionCompetition subscriptionCompetition = instantiate(IpoSubscriptionCompetition.class);
-        ReflectionTestUtils.setField(subscriptionCompetition, "stock", ipoStock);
-        ReflectionTestUtils.setField(subscriptionCompetition, "defaultTab", CompetitionTabType.EQUAL);
-        ReflectionTestUtils.setField(subscriptionCompetition, "equalExpectedAllocationQuantity", new BigDecimal("2.50"));
-        ReflectionTestUtils.setField(subscriptionCompetition, "equalCompetitionRate", new BigDecimal("150.25"));
-        ReflectionTestUtils.setField(subscriptionCompetition, "proportionalExpectedAllocationQuantity", new BigDecimal("1.25"));
-        ReflectionTestUtils.setField(subscriptionCompetition, "proportionalCompetitionRate", new BigDecimal("320.75"));
-        ReflectionTestUtils.setField(subscriptionCompetition, "createdAt", LocalDateTime.now());
-        ReflectionTestUtils.setField(subscriptionCompetition, "updatedAt", LocalDateTime.now());
-        return subscriptionCompetition;
     }
 
     private IpoSubscriptionCompany subscriptionCompany(
@@ -555,18 +491,6 @@ class IpoServiceTest {
         ReflectionTestUtils.setField(subscriptionCompany, "createdAt", LocalDateTime.now());
         ReflectionTestUtils.setField(subscriptionCompany, "updatedAt", LocalDateTime.now());
         return subscriptionCompany;
-    }
-
-    private IpoOfferingInfo offeringInfo(IpoStock ipoStock) {
-        IpoOfferingInfo offeringInfo = instantiate(IpoOfferingInfo.class);
-        ReflectionTestUtils.setField(offeringInfo, "stock", ipoStock);
-        ReflectionTestUtils.setField(offeringInfo, "marketCap", new BigDecimal("250000000000.00"));
-        ReflectionTestUtils.setField(offeringInfo, "equalAllocationRatio", new BigDecimal("50.00"));
-        ReflectionTestUtils.setField(offeringInfo, "circulatingRatio", new BigDecimal("18.40"));
-        ReflectionTestUtils.setField(offeringInfo, "oldShareSaleRatio", new BigDecimal("5.10"));
-        ReflectionTestUtils.setField(offeringInfo, "createdAt", LocalDateTime.now());
-        ReflectionTestUtils.setField(offeringInfo, "updatedAt", LocalDateTime.now());
-        return offeringInfo;
     }
 
     private <T> T instantiate(Class<T> type) {

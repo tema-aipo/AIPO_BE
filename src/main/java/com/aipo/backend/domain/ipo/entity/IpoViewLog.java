@@ -6,12 +6,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "ipo_view_log")
 public class IpoViewLog {
+
+    private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
 
     // 조회 로그 PK
     @Id
@@ -41,7 +44,7 @@ public class IpoViewLog {
         IpoViewLog viewLog = new IpoViewLog();
         viewLog.userId = userId;
         viewLog.stock = stock;
-        viewLog.viewedAt = LocalDateTime.now();
+        viewLog.viewedAt = LocalDateTime.now(KOREA_ZONE);
         viewLog.source = source;
         return viewLog;
     }

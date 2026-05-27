@@ -2,7 +2,6 @@ package com.aipo.backend.domain.ipo.repository;
 
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -16,14 +15,6 @@ public interface IpoStockRepository extends JpaRepository<IpoStock, Long>, IpoSt
 
     @Query("select s from IpoStock s where s.corpCode = :dartCorpCode")
     List<IpoStock> findAllByDartCorpCode(@Param("dartCorpCode") String dartCorpCode);
-
-    @Modifying
-    @Query(value = """
-            update ipo_main
-            set recent_growth_score = coalesce(recent_growth_score, 0) + 1
-            where stock_id = :stockId
-            """, nativeQuery = true)
-    int incrementRecentGrowthScore(@Param("stockId") Long stockId);
 
     @Query(value = """
             select

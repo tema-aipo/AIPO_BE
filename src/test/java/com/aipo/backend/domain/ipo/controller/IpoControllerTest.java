@@ -81,7 +81,7 @@ class IpoControllerTest {
                 false
         );
 
-        when(ipoService.getIpos(0, 20, "에이", "subscriptionStartDate", "asc")).thenReturn(response);
+        when(ipoService.getIpos(0, 20, "에이", "subscriptionStartDate", "asc", null)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/ipos")
                         .param("page", "0")
@@ -102,7 +102,7 @@ class IpoControllerTest {
                 .andExpect(jsonPath("$.totalPages").value(1))
                 .andExpect(jsonPath("$.hasNext").value(false));
 
-        verify(ipoService).getIpos(0, 20, "에이", "subscriptionStartDate", "asc");
+        verify(ipoService).getIpos(0, 20, "에이", "subscriptionStartDate", "asc", null);
     }
 
     @Test

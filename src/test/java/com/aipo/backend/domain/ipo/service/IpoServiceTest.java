@@ -34,6 +34,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -90,7 +91,12 @@ class IpoServiceTest {
                 .thenReturn(items);
         when(ipoStockRepository.countIpoList("에이")).thenReturn(21L);
 
-        IpoListResponse response = ipoService.getIpos(0, 20, " 에이 ", "subscriptionStartDate", "asc");
+        when(ipoStockRepository.countViewsByStockIds(org.mockito.ArgumentMatchers.eq(List.of(1L)),
+                org.mockito.ArgumentMatchers.any(LocalDateTime.class),
+                org.mockito.ArgumentMatchers.any(LocalDateTime.class)))
+                .thenReturn(Map.of(1L, 7));
+
+        IpoListResponse response = ipoService.getIpos(0, 20, " 에이 ", "subscriptionStartDate", "asc", null);
 
         assertThat(response.items()).hasSize(1);
         assertThat(response.items().get(0).ipoId()).isEqualTo(1L);
@@ -99,6 +105,7 @@ class IpoServiceTest {
         assertThat(response.totalElements()).isEqualTo(21L);
         assertThat(response.totalPages()).isEqualTo(2);
         assertThat(response.hasNext()).isTrue();
+        assertThat(response.items().get(0).recentGrowthScore()).isEqualTo(7);
         verify(ipoStockRepository).findIpoList(0, 20, "에이", "subscriptionStartDate", "asc");
         verify(ipoStockRepository).countIpoList("에이");
     }
@@ -164,7 +171,6 @@ class IpoServiceTest {
         assertThat(response.depositInfos().get(0).subscriptionLimitShareCount()).isEqualTo(4000);
         assertThat(response.depositInfos().get(0).note()).isEqualTo("대표 주관사");
         assertThat(response.offeringInfo().marketCap()).isNull();
-        verify(ipoStockRepository).incrementRecentGrowthScore(ipoId);
         ArgumentCaptor<IpoViewLog> viewLogCaptor = ArgumentCaptor.forClass(IpoViewLog.class);
         verify(ipoViewLogRepository).save(viewLogCaptor.capture());
         assertThat(viewLogCaptor.getValue().getUserId()).isEqualTo(userId);
@@ -184,7 +190,6 @@ class IpoServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting(exception -> ((CustomException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.IPO_NOT_FOUND);
-        verify(ipoStockRepository, never()).incrementRecentGrowthScore(ipoId);
         verify(ipoViewLogRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 

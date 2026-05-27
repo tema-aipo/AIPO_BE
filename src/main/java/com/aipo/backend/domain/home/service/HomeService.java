@@ -83,9 +83,6 @@ public class HomeService {
     private List<AttractivenessItem> sortAndLimitItems(HomeTab tab, List<AttractivenessItem> items) {
         return switch (tab) {
             case RECENT_GROWTH -> items.stream()
-                    .sorted(Comparator
-                            .comparing(AttractivenessItem::listingDate, Comparator.nullsLast(Comparator.reverseOrder()))
-                            .thenComparing(AttractivenessItem::ipoId))
                     .limit(10)
                     .toList();
             case SUBSCRIPTION_UPCOMING -> {

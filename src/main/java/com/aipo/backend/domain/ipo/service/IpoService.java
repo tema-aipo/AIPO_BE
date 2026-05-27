@@ -14,11 +14,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +40,7 @@ public class IpoService {
     private static final double AGGRESSIVE_REMAINING_WEIGHT = 0.70;
     private static final double BALANCED_REMAINING_WEIGHT = 0.85;
     private static final double CONSERVATIVE_REMAINING_WEIGHT = 0.95;
+    private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
 
     private final IpoStockRepository ipoStockRepository;
     private final IpoDemandForecastRepository ipoDemandForecastRepository;
@@ -44,7 +50,7 @@ public class IpoService {
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
     private final AttractivenessService attractivenessService;
 
-    public IpoListResponse getIpos(int page, int size, String keyword, String sort, String direction) {
+    public IpoListResponse getIpos(int page, int size, String keyword, String sort, String direction, Long userId) {
         int normalizedPage = Math.max(page, DEFAULT_PAGE);
         int normalizedSize = normalizeSize(size);
         String normalizedKeyword = normalizeKeyword(keyword);
@@ -56,6 +62,7 @@ public class IpoService {
                 sort,
                 direction
         );
+        items = applyCalculatedListValues(items, userId);
         long totalElements = ipoStockRepository.countIpoList(normalizedKeyword);
 
         return IpoListResponse.of(items, normalizedPage, normalizedSize, totalElements);
@@ -65,7 +72,6 @@ public class IpoService {
     public IpoDetailResponse getIpoDetail(Long ipoId, Long userId) {
         IpoDetailProjection ipo = ipoStockRepository.findDetailByStockId(ipoId)
                 .orElseThrow(() -> new CustomException(ErrorCode.IPO_NOT_FOUND));
-        ipoStockRepository.incrementRecentGrowthScore(ipoId);
         saveViewLog(ipoId, userId);
 
         IpoDemandForecast demandForecast = ipoDemandForecastRepository.findByStock_Id(ipoId).orElse(null);
@@ -248,14 +254,7 @@ public class IpoService {
                 .findFirst()
                 .orElseGet(() -> toAttractivenessProjection(ipo));
 
-        InvestmentProfileType currentProfileType = userId == null
-                ? null
-                : userInvestmentProfileResultRepository
-                .findTopByUserIdAndCurrentTrueOrderByCreatedAtDescIdDesc(userId)
-                .map(result -> result.getProfileType())
-                .orElse(null);
-
-        return attractivenessService.calculateForIpo(targetIpo, allIpos, currentProfileType);
+        return attractivenessService.calculateForIpo(targetIpo, allIpos, currentProfileType(userId));
     }
 
     private AttractivenessIpoProjection toAttractivenessProjection(IpoDetailProjection ipo) {
@@ -360,6 +359,106 @@ public class IpoService {
             return null;
         }
         return keyword.trim();
+    }
+
+    private InvestmentProfileType currentProfileType(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return userInvestmentProfileResultRepository
+                .findTopByUserIdAndCurrentTrueOrderByCreatedAtDescIdDesc(userId)
+                .map(result -> result.getProfileType())
+                .orElse(null);
+    }
+
+    private List<IpoListItem> applyCalculatedListValues(List<IpoListItem> items, Long userId) {
+        if (items == null || items.isEmpty()) {
+            return items;
+        }
+
+        Map<Long, Integer> scoreByStockId = calculateListScores(items, currentProfileType(userId));
+        Map<Long, Integer> todayViewCountByStockId = countTodayViews(items.stream()
+                .map(IpoListItem::ipoId)
+                .toList());
+
+        return items.stream()
+                .map(item -> new IpoListItem(
+                        item.ipoId(),
+                        item.stockName(),
+                        item.companyName(),
+                        item.marketType(),
+                        item.oneLineDescription(),
+                        item.confirmedOfferPrice(),
+                        item.subscriptionStartDate(),
+                        item.subscriptionEndDate(),
+                        item.listingDate(),
+                        BigDecimal.valueOf(scoreByStockId.getOrDefault(
+                                item.ipoId(),
+                                item.attractionScore() == null ? 0 : item.attractionScore().intValue()
+                        )),
+                        todayViewCountByStockId.getOrDefault(item.ipoId(), 0),
+                        item.demandForecastDate(),
+                        item.refundDate()
+                ))
+                .toList();
+    }
+
+    private Map<Long, Integer> countTodayViews(List<Long> stockIds) {
+        LocalDate today = LocalDate.now(KOREA_ZONE);
+        Map<Long, Integer> viewCounts = ipoStockRepository.countViewsByStockIds(
+                stockIds,
+                today.atStartOfDay(),
+                today.plusDays(1).atStartOfDay()
+        );
+        return viewCounts == null ? Map.of() : viewCounts;
+    }
+
+    private Map<Long, Integer> calculateListScores(
+            List<IpoListItem> items,
+            InvestmentProfileType currentProfileType
+    ) {
+        List<AttractivenessIpoProjection> allIpos;
+        try {
+            allIpos = ipoStockRepository.findAllForAttractiveness();
+        } catch (DataAccessException exception) {
+            allIpos = items.stream()
+                    .map(this::fallbackAttractivenessProjection)
+                    .toList();
+        }
+
+        if (allIpos == null || allIpos.isEmpty()) {
+            allIpos = items.stream()
+                    .map(this::fallbackAttractivenessProjection)
+                    .toList();
+        }
+
+        Map<Long, AttractivenessIpoProjection> projectionByStockId = allIpos.stream()
+                .collect(Collectors.toMap(
+                        AttractivenessIpoProjection::getStockId,
+                        Function.identity(),
+                        (existing, replacement) -> existing
+                ));
+        List<AttractivenessIpoProjection> finalAllIpos = allIpos;
+
+        return items.stream()
+                .collect(Collectors.toMap(
+                        IpoListItem::ipoId,
+                        item -> {
+                            AttractivenessIpoProjection target = projectionByStockId.getOrDefault(
+                                    item.ipoId(),
+                                    fallbackAttractivenessProjection(item)
+                            );
+                            return attractivenessService
+                                    .calculateForIpo(target, finalAllIpos, currentProfileType)
+                                    .selected()
+                                    .score();
+                        },
+                        (existing, replacement) -> existing
+                ));
+    }
+
+    private AttractivenessIpoProjection fallbackAttractivenessProjection(IpoListItem item) {
+        return new SimpleAttractivenessIpoProjection(item.ipoId(), item.companyName(), null, null, null, null);
     }
 
     private record SimpleAttractivenessIpoProjection(

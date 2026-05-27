@@ -44,9 +44,11 @@ public class IpoController {
             @Parameter(description = "정렬 필드. subscriptionStartDate, subscriptionEndDate, listingDate, confirmedOfferPrice, attractionScore, recentGrowthScore, stockName, companyName 지원", example = "subscriptionStartDate")
             @RequestParam(defaultValue = "subscriptionStartDate") String sort,
             @Parameter(description = "정렬 방향. asc 또는 desc", example = "asc")
-            @RequestParam(defaultValue = "asc") String direction
+            @RequestParam(defaultValue = "asc") String direction,
+            @AuthenticationPrincipal CustomUserDetails principal
     ) {
-        IpoListResponse response = ipoService.getIpos(page, size, keyword, sort, direction);
+        Long userId = principal != null ? principal.getUserId() : null;
+        IpoListResponse response = ipoService.getIpos(page, size, keyword, sort, direction, userId);
         return ResponseEntity.ok(response);
     }
 

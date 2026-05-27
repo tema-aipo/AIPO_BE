@@ -6,6 +6,7 @@ import com.aipo.backend.domain.home.dto.FeaturedIpoItem;
 import com.aipo.backend.domain.home.dto.TrendingIpoItem;
 import com.aipo.backend.domain.ipo.dto.IpoListItem;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -34,4 +35,6 @@ public interface IpoStockRepositoryCustom {
     long countIpoList(String keyword);
 
     Map<Long, String> findUnderwritersByStockIds(List<Long> stockIds);
+
+    Map<Long, Integer> countViewsByStockIds(List<Long> stockIds, LocalDateTime startInclusive, LocalDateTime endExclusive);
 }

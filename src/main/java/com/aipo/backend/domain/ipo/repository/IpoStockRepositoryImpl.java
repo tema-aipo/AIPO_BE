@@ -13,6 +13,8 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
 
     private static final String DEFAULT_SORT_EXPRESSION = "s.subscriptionDate";
+    private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
 
     @PersistenceContext
     private EntityManager em;
@@ -50,13 +53,16 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                 from ipo_main m
                 left join ipo_view_log v on v.stock_id = m.stock_id
+                    and v.viewed_at >= :todayStart
+                    and v.viewed_at < :tomorrowStart
                 group by m.stock_id, m.corp_name, m.stock_code, m.listing_date,
-                    m.recent_growth_score, m.attract_score, m.created_at
+                    m.attract_score, m.created_at
                 order by count(v.view_log_id) desc,
-                    coalesce(m.recent_growth_score, 0) desc,
                     coalesce(m.attract_score, 0) desc,
                     m.created_at desc
                 """)
+                .setParameter("todayStart", todayStart())
+                .setParameter("tomorrowStart", tomorrowStart())
                 .getResultList()
                 .stream()
                 .map(row -> toFeaturedIpoCandidate((Object[]) row))
@@ -71,17 +77,21 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     m.corp_name,
                     coalesce(m.corp_name, m.stock_code),
                     m.corp_name,
-                    m.recent_growth_score,
+                    count(v.view_log_id),
                     m.attract_score,
                     count(v.view_log_id) as view_count
                 from ipo_main m
                 left join ipo_view_log v on v.stock_id = m.stock_id
+                    and v.viewed_at >= :todayStart
+                    and v.viewed_at < :tomorrowStart
                 group by m.stock_id, m.corp_name, m.stock_code,
-                    m.recent_growth_score, m.attract_score
-                order by coalesce(m.recent_growth_score, 0) desc,
+                    m.attract_score
+                order by count(v.view_log_id) desc,
                     coalesce(m.attract_score, 0) desc,
-                    count(v.view_log_id) desc
+                    m.stock_id asc
                 """)
+                .setParameter("todayStart", todayStart())
+                .setParameter("tomorrowStart", tomorrowStart())
                 .setMaxResults(3)
                 .getResultList()
                 .stream()
@@ -97,7 +107,7 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     m.corp_name,
                     coalesce(m.corp_name, m.stock_code),
                     m.corp_name,
-                    m.recent_growth_score,
+                    count(v.view_log_id),
                     m.attract_score,
                     null as subscriptionStartDate,
                     null as subscriptionEndDate,
@@ -106,12 +116,18 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     m.refund_date,
                     date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
                 from ipo_main m
-                order by nullif(m.listing_date, '0000-00-00') is null asc,
-                    nullif(m.listing_date, '0000-00-00') desc,
-                    coalesce(m.recent_growth_score, 0) desc,
+                left join ipo_view_log v on v.stock_id = m.stock_id
+                    and v.viewed_at >= :todayStart
+                    and v.viewed_at < :tomorrowStart
+                group by m.stock_id, m.corp_name, m.stock_code, m.attract_score,
+                    m.subscription_date, m.demand_forecast_date, m.refund_date,
+                    m.listing_date, m.created_at
+                order by count(v.view_log_id) desc,
                     coalesce(m.attract_score, 0) desc,
                     m.created_at desc
                 """)
+                .setParameter("todayStart", todayStart())
+                .setParameter("tomorrowStart", tomorrowStart())
                 .setMaxResults(10)
                 .getResultList()
                 .stream()
@@ -171,10 +187,18 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     from user_favorite_stock f
                     where f.stock_id = m.stock_id
                 ) desc,
-                coalesce(m.recent_growth_score, 0) desc,
+                (
+                    select count(v.view_log_id)
+                    from ipo_view_log v
+                    where v.stock_id = m.stock_id
+                        and v.viewed_at >= :todayStart
+                        and v.viewed_at < :tomorrowStart
+                ) desc,
                 coalesce(m.attract_score, 0) desc,
                 m.created_at desc
                 """)
+                .setParameter("todayStart", todayStart())
+                .setParameter("tomorrowStart", tomorrowStart())
                 .setMaxResults(10)
                 .getResultList()
                 .stream()
@@ -184,6 +208,7 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
 
     @Override
     public List<IpoListItem> findIpoList(int page, int size, String keyword, String sort, String direction) {
+        boolean sortByTodayViews = "recentGrowthScore".equals(sort);
         String orderBy = resolveSortExpression(sort) + " " + resolveDirection(direction) + ", s.id asc";
         String keywordPattern = toKeywordPattern(keyword);
 
@@ -197,6 +222,10 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 """.formatted(orderBy), IpoStock.class);
 
         query.setParameter("keyword", keywordPattern);
+        if (sortByTodayViews) {
+            query.setParameter("todayStart", todayStart());
+            query.setParameter("tomorrowStart", tomorrowStart());
+        }
         return query
                 .setFirstResult(page * size)
                 .setMaxResults(size)
@@ -241,6 +270,38 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 .collect(Collectors.toMap(
                         row -> toLong(row[0]),
                         row -> row[1].toString(),
+                        (existing, replacement) -> existing
+                ));
+    }
+
+    @Override
+    public Map<Long, Integer> countViewsByStockIds(
+            List<Long> stockIds,
+            LocalDateTime startInclusive,
+            LocalDateTime endExclusive
+    ) {
+        if (stockIds == null || stockIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<?> rows = em.createNativeQuery("""
+                select v.stock_id, count(v.view_log_id)
+                from ipo_view_log v
+                where v.stock_id in (:stockIds)
+                    and v.viewed_at >= :startInclusive
+                    and v.viewed_at < :endExclusive
+                group by v.stock_id
+                """)
+                .setParameter("stockIds", stockIds)
+                .setParameter("startInclusive", startInclusive)
+                .setParameter("endExclusive", endExclusive)
+                .getResultList();
+
+        return rows.stream()
+                .map(row -> (Object[]) row)
+                .collect(Collectors.toMap(
+                        row -> toLong(row[0]),
+                        row -> toInteger(row[1]),
                         (existing, replacement) -> existing
                 ));
     }
@@ -301,7 +362,7 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 0,
                 IpoStockViewMapper.displayName(toString(row[1]), toString(row[2]), toString(row[3])),
                 displayScore(row[4], row[5]),
-                toLong(row[4])
+                toLong(row[6])
         );
     }
 
@@ -371,10 +432,24 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
             case "listingDate" -> "s.listingDate";
             case "confirmedOfferPrice" -> "s.offeringPrice";
             case "attractionScore" -> "coalesce(s.attractScore, 0)";
-            case "recentGrowthScore" -> "coalesce(s.recentGrowthScore, 0)";
+            case "recentGrowthScore" -> """
+                    (select count(v.id)
+                    from IpoViewLog v
+                    where v.stock = s
+                        and v.viewedAt >= :todayStart
+                        and v.viewedAt < :tomorrowStart)
+                    """;
             case "stockName", "companyName" -> "s.corpName";
             default -> DEFAULT_SORT_EXPRESSION;
         };
+    }
+
+    private LocalDateTime todayStart() {
+        return LocalDate.now(KOREA_ZONE).atStartOfDay();
+    }
+
+    private LocalDateTime tomorrowStart() {
+        return LocalDate.now(KOREA_ZONE).plusDays(1).atStartOfDay();
     }
 
     private String resolveDirection(String direction) {

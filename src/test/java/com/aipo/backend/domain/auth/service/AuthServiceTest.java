@@ -4,6 +4,7 @@ import com.aipo.backend.domain.auth.dto.MessageResponse;
 import com.aipo.backend.domain.auth.entity.UserRefreshToken;
 import com.aipo.backend.domain.auth.repository.UserRefreshTokenRepository;
 import com.aipo.backend.domain.investmentprofile.service.InvestmentProfileService;
+import com.aipo.backend.domain.log.service.LoginLogService;
 import com.aipo.backend.domain.user.service.NotificationSettingService;
 import com.aipo.backend.domain.user.entity.User;
 import com.aipo.backend.domain.user.repository.UserRepository;
@@ -55,6 +56,9 @@ class AuthServiceTest {
 
     @Mock
     private NotificationSettingService notificationSettingService;
+
+    @Mock
+    private LoginLogService loginLogService;
 
     @InjectMocks
     private AuthService authService;

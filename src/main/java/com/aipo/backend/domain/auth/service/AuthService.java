@@ -11,6 +11,7 @@ import com.aipo.backend.domain.auth.dto.ReissueResponse;
 import com.aipo.backend.domain.auth.entity.UserRefreshToken;
 import com.aipo.backend.domain.auth.repository.UserRefreshTokenRepository;
 import com.aipo.backend.domain.investmentprofile.service.InvestmentProfileService;
+import com.aipo.backend.domain.log.service.LoginLogService;
 import com.aipo.backend.domain.user.service.NotificationSettingService;
 import com.aipo.backend.domain.user.entity.User;
 import com.aipo.backend.domain.user.entity.UserStatus;
@@ -39,6 +40,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final InvestmentProfileService investmentProfileService;
     private final NotificationSettingService notificationSettingService;
+    private final LoginLogService loginLogService;
 
     @Transactional(readOnly = true)
     public LoginIdAvailabilityResponse checkLoginIdAvailability(String loginId) {
@@ -94,6 +96,7 @@ public class AuthService {
         }
 
         user.updateLastLoginAt();
+        loginLogService.record(user);
 
         String accessToken = jwtTokenProvider.createAccessToken(
                 user.getLoginId(),

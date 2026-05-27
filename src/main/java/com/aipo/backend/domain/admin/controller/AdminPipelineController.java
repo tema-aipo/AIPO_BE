@@ -1,10 +1,8 @@
 package com.aipo.backend.domain.admin.controller;
 
+import com.aipo.backend.domain.admin.service.PipelineAdminService;
 import com.aipo.backend.domain.pipeline.entity.PipelineJob;
 import com.aipo.backend.domain.pipeline.entity.PipelineJobStatus;
-import com.aipo.backend.domain.pipeline.repository.PipelineJobRepository;
-import com.aipo.backend.global.exception.CustomException;
-import com.aipo.backend.global.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,8 +10,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +22,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AdminPipelineController {
 
-    private final PipelineJobRepository pipelineJobRepository;
+    private final PipelineAdminService pipelineAdminService; // ✨ 수정된 서비스 이름 적용
 
     @Operation(summary = "파이프라인 작업 목록 조회")
     @GetMapping("/jobs")
@@ -35,49 +31,30 @@ public class AdminPipelineController {
             @RequestParam(required = false) String jobType,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-
-        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return pipelineJobRepository.findAllByFilter(status, jobType, pageable)
-                .map(PipelineJobResponse::from);
+        return pipelineAdminService.listJobs(status, jobType, page, size);
     }
 
     @Operation(summary = "파이프라인 작업 상세 조회")
     @GetMapping("/jobs/{jobId}")
     public PipelineJobResponse getJob(@PathVariable Long jobId) {
-        PipelineJob job = pipelineJobRepository.findById(jobId)
-                .orElseThrow(() -> new CustomException(ErrorCode.PIPELINE_JOB_NOT_FOUND));
-        return PipelineJobResponse.from(job);
+        return pipelineAdminService.getJob(jobId);
     }
 
     @Operation(summary = "파이프라인 상태 요약")
     @GetMapping("/status")
     public PipelineSummaryResponse summary() {
-        long queued = pipelineJobRepository.countByJobStatus(PipelineJobStatus.QUEUED);
-        long running = pipelineJobRepository.countByJobStatus(PipelineJobStatus.RUNNING);
-        long completed = pipelineJobRepository.countByJobStatus(PipelineJobStatus.COMPLETED);
-        long failed = pipelineJobRepository.countByJobStatus(PipelineJobStatus.FAILED);
-        long cancelled = pipelineJobRepository.countByJobStatus(PipelineJobStatus.CANCELLED);
-        return new PipelineSummaryResponse(queued, running, completed, failed, cancelled);
+        return pipelineAdminService.getSummary();
     }
 
     @Operation(summary = "파이프라인 작업 취소")
     @PostMapping("/jobs/{jobId}/cancel")
     public ResponseEntity<PipelineJobResponse> cancelJob(@PathVariable Long jobId) {
-        PipelineJob job = pipelineJobRepository.findById(jobId)
-                .orElseThrow(() -> new CustomException(ErrorCode.PIPELINE_JOB_NOT_FOUND));
-
-        if (job.getJobStatus() != PipelineJobStatus.QUEUED && job.getJobStatus() != PipelineJobStatus.RUNNING) {
-            throw new CustomException(ErrorCode.PIPELINE_JOB_CANCEL_DENIED,
-                    "취소할 수 없는 상태입니다: " + job.getJobStatus());
-        }
-        job.cancel();
-        pipelineJobRepository.save(job);
-        return ResponseEntity.ok(PipelineJobResponse.from(job));
+        return ResponseEntity.ok(pipelineAdminService.cancelJob(jobId));
     }
 
     @Getter
     @AllArgsConstructor
-    static class PipelineJobResponse {
+    public static class PipelineJobResponse {
         private Long jobId;
         private Long docId;
         private String originalDocName;
@@ -88,7 +65,7 @@ public class AdminPipelineController {
         private String errorMessage;
         private LocalDateTime createdAt;
 
-        static PipelineJobResponse from(PipelineJob job) {
+        public static PipelineJobResponse from(PipelineJob job) {
             return new PipelineJobResponse(
                     job.getJobId(),
                     job.getDocument() != null ? job.getDocument().getDocId() : null,
@@ -105,7 +82,7 @@ public class AdminPipelineController {
 
     @Getter
     @AllArgsConstructor
-    static class PipelineSummaryResponse {
+    public static class PipelineSummaryResponse {
         private long queued;
         private long running;
         private long completed;

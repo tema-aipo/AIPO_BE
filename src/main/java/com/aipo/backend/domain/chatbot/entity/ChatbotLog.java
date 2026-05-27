@@ -8,11 +8,12 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "chatbot_log",
+@Table(name = "chat_message", // ✨ 진짜 RDS 테이블 이름으로 수정!
         indexes = {
-                @Index(name = "idx_chatbot_log_user_id", columnList = "user_id"),
-                @Index(name = "idx_chatbot_log_session_id", columnList = "session_id"),
-                @Index(name = "idx_chatbot_log_created_at", columnList = "created_at DESC")
+                // ✨ 인덱스 이름들도 테이블명에 맞춰 깔끔하게 수정
+                @Index(name = "idx_chat_message_user_id", columnList = "user_id"),
+                @Index(name = "idx_chat_message_session_id", columnList = "session_id"),
+                @Index(name = "idx_chat_message_created_at", columnList = "created_at DESC")
         })
 @Getter
 @NoArgsConstructor

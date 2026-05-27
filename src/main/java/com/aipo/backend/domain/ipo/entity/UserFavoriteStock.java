@@ -15,6 +15,10 @@ import java.time.LocalDateTime;
         uniqueConstraints = {
                 // 한 사용자가 같은 종목을 중복 관심종목으로 등록하지 못하도록 제한
                 @UniqueConstraint(name = "uk_user_favorite_stock", columnNames = {"user_id", "stock_id"})
+        },
+        indexes = {
+                // 🏆 관심 종목 랭킹 Top 10 집계 속도 최적화 인덱스
+                @Index(name = "idx_user_favorite_stock_stock_id", columnList = "stock_id")
         }
 )
 public class UserFavoriteStock {

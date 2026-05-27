@@ -10,7 +10,13 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "ipo_view_log")
+@Table(name = "ipo_view_log",
+        indexes = {
+                // 1. 날짜 범위 검색 최적화 (내림차순)
+                @Index(name = "idx_ipo_view_log_viewed_at", columnList = "viewed_at DESC"),
+                // 2. 공모주별 집계(GROUP BY) 최적화
+                @Index(name = "idx_ipo_view_log_stock_id", columnList = "stock_id")
+        })
 public class IpoViewLog {
 
     // 조회 로그 PK

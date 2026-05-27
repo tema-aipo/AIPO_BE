@@ -27,6 +27,9 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 public class HomeService {
 
+    private static final int FEATURED_LISTING_START_DAYS = 1;
+    private static final int FEATURED_LISTING_END_DAYS = 7;
+
     private final IpoStockRepository ipoStockRepository;
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
     private final AttractivenessService attractivenessService;
@@ -149,20 +152,26 @@ public class HomeService {
             return List.of();
         }
 
+        LocalDate today = LocalDate.now();
+        candidates = candidates.stream()
+                .filter(candidate -> isFeaturedListingCandidate(candidate.listingDate(), today))
+                .toList();
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+
         Map<Long, Integer> scoreByStockId = calculateHomeScores(
                 candidates.stream()
                         .map(this::toAttractivenessItem)
                         .toList(),
                 currentProfileType(userId)
         );
-        LocalDate today = LocalDate.now();
 
         List<FeaturedIpoItem> featured = candidates.stream()
                 .sorted(Comparator
                         .comparing((FeaturedIpoCandidate candidate) ->
                                 scoreByStockId.getOrDefault(candidate.ipoId(), 0), Comparator.reverseOrder())
                         .thenComparing(FeaturedIpoCandidate::viewCount, Comparator.nullsLast(Comparator.reverseOrder()))
-                        .thenComparing(candidate -> listingDatePriority(candidate.listingDate(), today))
                         .thenComparing(FeaturedIpoCandidate::ipoId))
                 .limit(5)
                 .map(candidate -> new FeaturedIpoItem(
@@ -174,6 +183,16 @@ public class HomeService {
                 .toList();
 
         return applyFeaturedRank(featured);
+    }
+
+    private boolean isFeaturedListingCandidate(LocalDate listingDate, LocalDate today) {
+        if (listingDate == null) {
+            return false;
+        }
+
+        long daysUntilListing = ChronoUnit.DAYS.between(today, listingDate);
+        return daysUntilListing >= FEATURED_LISTING_START_DAYS
+                && daysUntilListing <= FEATURED_LISTING_END_DAYS;
     }
 
     private AttractivenessItem toAttractivenessItem(FeaturedIpoCandidate candidate) {
@@ -188,18 +207,6 @@ public class HomeService {
                 null,
                 candidate.listingDate()
         );
-    }
-
-    private long listingDatePriority(LocalDate listingDate, LocalDate today) {
-        if (listingDate == null) {
-            return Long.MAX_VALUE;
-        }
-
-        long daysUntilListing = ChronoUnit.DAYS.between(today, listingDate);
-        if (daysUntilListing >= 0) {
-            return daysUntilListing;
-        }
-        return 1_000_000L + Math.abs(daysUntilListing);
     }
 
     private InvestmentProfileType currentProfileType(Long userId) {

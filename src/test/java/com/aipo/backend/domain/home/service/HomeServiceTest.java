@@ -44,10 +44,10 @@ class HomeServiceTest {
                 ipoLeadManagerRepository
         );
         LocalDate today = LocalDate.now();
-        AttractivenessItem past = item(1L, "과거청약", today.minusDays(10), today.minusDays(8));
-        AttractivenessItem futureLater = item(2L, "미래청약2", today.plusDays(5), today.plusDays(6));
-        AttractivenessItem active = item(3L, "진행중청약", today.minusDays(1), today.plusDays(1));
-        AttractivenessItem futureSoon = item(4L, "미래청약1", today.plusDays(2), today.plusDays(3));
+        AttractivenessItem past = item(1L, "past", today.minusDays(10), today.minusDays(8));
+        AttractivenessItem futureLater = item(2L, "future-later", today.plusDays(5), today.plusDays(6));
+        AttractivenessItem active = item(3L, "active", today.minusDays(1), today.plusDays(1));
+        AttractivenessItem futureSoon = item(4L, "future-soon", today.plusDays(2), today.plusDays(3));
 
         when(ipoStockRepository.findFeaturedIpoCandidates()).thenReturn(List.of());
         when(ipoStockRepository.findTrendingIpos()).thenReturn(List.of());
@@ -65,7 +65,7 @@ class HomeServiceTest {
     }
 
     @Test
-    void getHome_featuredIpos_areSortedByProfileScoreViewCountAndListingDate() {
+    void getHome_featuredIpos_includeListingsWithinSevenDaysAndSortByProfileScoreThenViewCount() {
         HomeService homeService = new HomeService(
                 ipoStockRepository,
                 userInvestmentProfileResultRepository,
@@ -75,16 +75,22 @@ class HomeServiceTest {
         LocalDate today = LocalDate.now();
 
         when(ipoStockRepository.findFeaturedIpoCandidates()).thenReturn(List.of(
-                candidate(1L, "조회수높은저점수", 999L, today.plusDays(1)),
-                candidate(2L, "고점수조회수낮음", 5L, today.plusDays(1)),
-                candidate(3L, "고점수조회수높음상장늦음", 10L, today.plusDays(10)),
-                candidate(4L, "고점수조회수높음상장가까움", 10L, today.plusDays(2))
+                candidate(5L, "today", 1000L, today),
+                candidate(6L, "past", 1000L, today.minusDays(1)),
+                candidate(1L, "low-score-high-view", 999L, today.plusDays(1)),
+                candidate(2L, "high-score-low-view", 5L, today.plusDays(1)),
+                candidate(3L, "outside-seven-days", 10L, today.plusDays(8)),
+                candidate(4L, "high-score-high-view", 10L, today.plusDays(2)),
+                candidate(7L, "seventh-day", 9L, today.plusDays(7))
         ));
         when(ipoStockRepository.findAllForAttractiveness()).thenReturn(List.of(
-                attractivenessIpo(1L, "조회수높은저점수", "100", "0", "100", "0"),
-                attractivenessIpo(2L, "고점수조회수낮음", "1000", "80", "10", "80"),
-                attractivenessIpo(3L, "고점수조회수높음상장늦음", "1000", "80", "10", "80"),
-                attractivenessIpo(4L, "고점수조회수높음상장가까움", "1000", "80", "10", "80")
+                attractivenessIpo(1L, "low-score-high-view", "100", "0", "100", "0"),
+                attractivenessIpo(2L, "high-score-low-view", "1000", "80", "10", "80"),
+                attractivenessIpo(3L, "outside-seven-days", "1000", "80", "10", "80"),
+                attractivenessIpo(4L, "high-score-high-view", "1000", "80", "10", "80"),
+                attractivenessIpo(5L, "today", "1000", "80", "10", "80"),
+                attractivenessIpo(6L, "past", "1000", "80", "10", "80"),
+                attractivenessIpo(7L, "seventh-day", "1000", "80", "10", "80")
         ));
         when(ipoStockRepository.findTrendingIpos()).thenReturn(List.of());
         when(ipoStockRepository.findAttractivenessByRecentGrowth()).thenReturn(List.of());
@@ -93,7 +99,7 @@ class HomeServiceTest {
 
         assertThat(response.featuredIpos())
                 .extracting(FeaturedIpoItem::ipoId)
-                .containsExactly(4L, 3L, 2L, 1L);
+                .containsExactly(4L, 7L, 2L, 1L);
         assertThat(response.featuredIpos())
                 .extracting(FeaturedIpoItem::rank)
                 .containsExactly(1, 2, 3, 4);

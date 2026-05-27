@@ -8,9 +8,8 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "chat_message", // ✨ 진짜 RDS 테이블 이름으로 수정!
+@Table(name = "chat_message",
         indexes = {
-                // ✨ 인덱스 이름들도 테이블명에 맞춰 깔끔하게 수정
                 @Index(name = "idx_chat_message_user_id", columnList = "user_id"),
                 @Index(name = "idx_chat_message_session_id", columnList = "session_id"),
                 @Index(name = "idx_chat_message_created_at", columnList = "created_at DESC")
@@ -21,7 +20,7 @@ public class ChatbotLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "log_id")
+    @Column(name = "chat_message_id") // ✨ 범인 검거 완료! 실제 DB PK 이름으로 수정
     private Long logId;
 
     @ManyToOne(fetch = FetchType.LAZY)

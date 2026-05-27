@@ -36,4 +36,13 @@ public class IpoViewLog {
     // 조회 출처 (HOME, DETAIL, SEARCH 등)
     @Column(name = "source", length = 30)
     private String source;
+
+    public static IpoViewLog create(Long userId, IpoStock stock, String source) {
+        IpoViewLog viewLog = new IpoViewLog();
+        viewLog.userId = userId;
+        viewLog.stock = stock;
+        viewLog.viewedAt = LocalDateTime.now();
+        viewLog.source = source;
+        return viewLog;
+    }
 }

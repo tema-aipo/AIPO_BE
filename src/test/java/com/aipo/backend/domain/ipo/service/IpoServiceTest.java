@@ -16,6 +16,7 @@ import com.aipo.backend.domain.ipo.entity.IpoSchedule;
 import com.aipo.backend.domain.ipo.entity.IpoStock;
 import com.aipo.backend.domain.ipo.entity.IpoSubscriptionCompetition;
 import com.aipo.backend.domain.ipo.entity.IpoSubscriptionCompany;
+import com.aipo.backend.domain.ipo.entity.IpoViewLog;
 import com.aipo.backend.domain.ipo.repository.AttractivenessIpoProjection;
 import com.aipo.backend.domain.ipo.repository.IpoAttractionReasonRepository;
 import com.aipo.backend.domain.ipo.repository.IpoDetailProjection;
@@ -25,6 +26,7 @@ import com.aipo.backend.domain.ipo.repository.IpoOfferingInfoRepository;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.repository.IpoSubscriptionCompetitionRepository;
 import com.aipo.backend.domain.ipo.repository.IpoSubscriptionCompanyRepository;
+import com.aipo.backend.domain.ipo.repository.IpoViewLogRepository;
 import com.aipo.backend.domain.ipo.repository.UserFavoriteStockRepository;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
@@ -32,6 +34,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -74,6 +77,9 @@ class IpoServiceTest {
 
     @Mock
     private IpoOfferingInfoRepository ipoOfferingInfoRepository;
+
+    @Mock
+    private IpoViewLogRepository ipoViewLogRepository;
 
     @Mock
     private UserFavoriteStockRepository userFavoriteStockRepository;
@@ -140,6 +146,7 @@ class IpoServiceTest {
         ReflectionTestUtils.setField(ipoStock, "refundDate", "2026.05.02");
 
         when(ipoStockRepository.findDetailByStockId(ipoId)).thenReturn(Optional.of(ipoDetailProjection(ipoStock)));
+        when(ipoStockRepository.getReferenceById(ipoId)).thenReturn(ipoStock);
         when(ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId)).thenReturn(List.of(
                 leadManager(ipoStock, "주관사A", 1),
                 leadManager(ipoStock, "주관사B", 2)
@@ -193,6 +200,12 @@ class IpoServiceTest {
         assertThat(response.depositInfos().get(0).note()).isEqualTo("대표 주관사");
         assertThat(response.offeringInfo().marketCap()).isEqualByComparingTo("250000000000.00");
         verify(ipoStockRepository).incrementRecentGrowthScore(ipoId);
+        ArgumentCaptor<IpoViewLog> viewLogCaptor = ArgumentCaptor.forClass(IpoViewLog.class);
+        verify(ipoViewLogRepository).save(viewLogCaptor.capture());
+        assertThat(viewLogCaptor.getValue().getUserId()).isEqualTo(userId);
+        assertThat(viewLogCaptor.getValue().getStock()).isSameAs(ipoStock);
+        assertThat(viewLogCaptor.getValue().getSource()).isEqualTo("DETAIL");
+        assertThat(viewLogCaptor.getValue().getViewedAt()).isNotNull();
     }
 
     @Test
@@ -207,6 +220,7 @@ class IpoServiceTest {
                 .extracting(exception -> ((CustomException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.IPO_NOT_FOUND);
         verify(ipoStockRepository, never()).incrementRecentGrowthScore(ipoId);
+        verify(ipoViewLogRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

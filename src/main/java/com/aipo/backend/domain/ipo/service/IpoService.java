@@ -31,6 +31,7 @@ public class IpoService {
     private static final String PROFILE_AGGRESSIVE = "aggressive";
     private static final String PROFILE_BALANCED = "balanced";
     private static final String PROFILE_CONSERVATIVE = "conservative";
+    private static final String VIEW_SOURCE_DETAIL = "DETAIL";
     private static final double AGGRESSIVE_REMAINING_WEIGHT = 0.70;
     private static final double BALANCED_REMAINING_WEIGHT = 0.85;
     private static final double CONSERVATIVE_REMAINING_WEIGHT = 0.95;
@@ -42,6 +43,7 @@ public class IpoService {
     private final IpoSubscriptionCompetitionRepository ipoSubscriptionCompetitionRepository;
     private final IpoSubscriptionCompanyRepository ipoSubscriptionCompanyRepository;
     private final IpoOfferingInfoRepository ipoOfferingInfoRepository;
+    private final IpoViewLogRepository ipoViewLogRepository;
     private final UserFavoriteStockRepository userFavoriteStockRepository;
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
     private final AttractivenessService attractivenessService;
@@ -68,6 +70,7 @@ public class IpoService {
         IpoDetailProjection ipo = ipoStockRepository.findDetailByStockId(ipoId)
                 .orElseThrow(() -> new CustomException(ErrorCode.IPO_NOT_FOUND));
         ipoStockRepository.incrementRecentGrowthScore(ipoId);
+        saveViewLog(ipoId, userId);
 
         List<IpoLeadManager> leadManagers = ipoLeadManagerRepository.findAllByStock_IdOrderByDisplayOrderAsc(ipoId);
         List<IpoAttractionReason> attractionReasons =
@@ -91,6 +94,11 @@ public class IpoService {
                 buildDepositInfos(depositInfos),
                 buildOfferingInfo(offeringInfo)
         );
+    }
+
+    private void saveViewLog(Long ipoId, Long userId) {
+        IpoStock stockReference = ipoStockRepository.getReferenceById(ipoId);
+        ipoViewLogRepository.save(IpoViewLog.create(userId, stockReference, VIEW_SOURCE_DETAIL));
     }
 
     private SummarySection buildSummary(IpoDetailProjection ipo, List<IpoLeadManager> leadManagers, Long userId) {

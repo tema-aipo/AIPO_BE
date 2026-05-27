@@ -61,6 +61,7 @@ class ChatMessageServiceTest {
         when(pythonChatbotClient.chat(any())).thenReturn(new PythonChatResponse("success", "AI 답변입니다.", String.valueOf(userId)));
         when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> {
             ChatMessage message = invocation.getArgument(0);
+            assertThat(message.getUserId()).isEqualTo(userId);
             if (message.getMessageRole() == MessageRole.USER) {
                 ReflectionTestUtils.setField(message, "id", 11L);
             } else {
@@ -121,6 +122,7 @@ class ChatMessageServiceTest {
     private ChatMessage message(ChatSession session, Long id, MessageRole role, String content, int sequenceNo) {
         ChatMessage message = ChatMessage.create(session, role, MessageType.TEXT, content, sequenceNo);
         ReflectionTestUtils.setField(message, "id", id);
+        assertThat(message.getUserId()).isEqualTo(session.getUserId());
         return message;
     }
 

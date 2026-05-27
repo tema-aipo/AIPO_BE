@@ -32,6 +32,9 @@ public class ChatMessage {
     @JoinColumn(name = "chat_session_id", nullable = false)
     private ChatSession chatSession;
 
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "message_role", nullable = false, length = 20)
     private MessageRole messageRole;
@@ -62,6 +65,7 @@ public class ChatMessage {
     ) {
         ChatMessage chatMessage = new ChatMessage();
         chatMessage.chatSession = chatSession;
+        chatMessage.userId = chatSession.getUserId();
         chatMessage.messageRole = messageRole;
         chatMessage.messageType = messageType;
         chatMessage.content = content;

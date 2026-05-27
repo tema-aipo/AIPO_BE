@@ -86,6 +86,40 @@ class CalendarServiceTest {
     }
 
     @Test
+    @DisplayName("???????ル‘? ??????ルㅎ臾???湲곌컙 以묎컙???쇱젙???ы븿?쒕떎")
+    void getMonthlyCalendar_selectedDateSectionIncludesScheduleRangeMiddleDate() {
+        CalendarService calendarService = spy(new CalendarService(
+                ipoStockRepository,
+                userInvestmentProfileResultRepository,
+                attractivenessService
+        ));
+
+        Long ipoId = 1L;
+        IpoStock stock = ipoStock(ipoId, "AIPO");
+        ReflectionTestUtils.setField(stock, "subscriptionDate", "2026.04.28 ~ 04.30");
+
+        when(ipoStockRepository.findAllForCalendar()).thenReturn(List.of(calendarProjection(stock)));
+        when(ipoStockRepository.findUnderwritersByStockIds(List.of(ipoId))).thenReturn(Map.of(ipoId, "LeadA"));
+        when(attractivenessService.calculateForIpo(any(AttractivenessIpoProjection.class), anyList(), isNull()))
+                .thenReturn(attractiveness(77));
+
+        CalendarMonthResponse response = calendarService.getMonthlyCalendar(
+                2026,
+                4,
+                LocalDate.of(2026, 4, 29),
+                null
+        );
+
+        assertThat(response.calendarCells().get(31).date()).isEqualTo(LocalDate.of(2026, 4, 29));
+        assertThat(response.calendarCells().get(31).items()).isEmpty();
+        assertThat(response.selectedDateSection().selectedDate()).isEqualTo(LocalDate.of(2026, 4, 29));
+        assertThat(response.selectedDateSection().companies()).hasSize(1);
+        assertThat(response.selectedDateSection().companies().get(0).ipoId()).isEqualTo(ipoId);
+        assertThat(response.selectedDateSection().companies().get(0).scheduleType()).isEqualTo("SUBSCRIPTION_START");
+        assertThat(response.selectedDateSection().companies().get(0).scheduleLabel()).isEqualTo("\uCCAD\uC57D \uAE30\uAC04");
+    }
+
+    @Test
     @DisplayName("selectedDate揶쎛 ??얩?鈺곌퀬???遺우뵠 ?袁⑹삺 ?遺우뵠筌???삳뮎 ?醫롮???疫꿸퀡???醫뤾문??뺣뼄")
     void getMonthlyCalendar_whenSelectedDateMissingInCurrentMonth_defaultsToToday() {
         CalendarService calendarService = spy(new CalendarService(

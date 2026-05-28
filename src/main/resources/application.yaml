@@ -69,6 +69,7 @@ app:
       - http://localhost:8080
       - http://127.0.0.1:5500
       - http://3.37.25.92:8080
+      - http://gachon-25-admin.s3-website.ap-northeast-2.amazonaws.com
       - http://gachon-25-s3-459600194430-ap-northeast-2-an.s3-website.ap-northeast-2.amazonaws.com
       - https://main.dmkb1ghrc591f.amplifyapp.com
     allowed-origin-patterns:

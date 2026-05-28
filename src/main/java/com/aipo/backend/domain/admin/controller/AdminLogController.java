@@ -1,6 +1,6 @@
 package com.aipo.backend.domain.admin.controller;
 
-import com.aipo.backend.domain.chatbot.entity.MessageRole;
+import com.aipo.backend.domain.chat.entity.MessageRole;
 import com.aipo.backend.domain.chatbot.service.ChatbotLogService;
 import com.aipo.backend.domain.log.service.LoginLogService;
 import com.aipo.backend.domain.user.entity.UserRole;

@@ -38,7 +38,12 @@ public class AdminUserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        // ✨ 수정 완료: 1차 마지막 로그인 순, 2차 가입일 순 정렬
+        PageRequest pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.DESC, "lastLoginAt")
+                        .and(Sort.by(Sort.Direction.DESC, "createdAt"))
+        );
+
         return userRepository.findAllByRoleAndFilter(UserRole.USER, keyword, status, pageable)
                 .map(UserSummaryResponse::from);
     }

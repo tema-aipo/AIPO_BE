@@ -1,5 +1,6 @@
 package com.aipo.backend.domain.chatbot.entity;
 
+import com.aipo.backend.domain.chat.entity.MessageRole;
 import com.aipo.backend.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -8,7 +9,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "chat_message",
+@Table(name = "chat_message", // 실제 RDS 테이블 이름
         indexes = {
                 @Index(name = "idx_chat_message_user_id", columnList = "user_id"),
                 @Index(name = "idx_chat_message_session_id", columnList = "session_id"),
@@ -20,7 +21,7 @@ public class ChatbotLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "chat_message_id") // ✨ 범인 검거 완료! 실제 DB PK 이름으로 수정
+    @Column(name = "chat_message_id") // 실제 DB PK 이름
     private Long logId;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -43,6 +44,9 @@ public class ChatbotLog {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "is_liked")
+    private Boolean isLiked; // ✨ 추가: 좋아요(true), 싫어요(false), 미평가(null)
+
     public ChatbotLog(User user, String sessionId, MessageRole messageRole, String content, Integer tokenCount) {
         this.user = user;
         this.sessionId = sessionId;
@@ -50,5 +54,10 @@ public class ChatbotLog {
         this.content = content;
         this.tokenCount = tokenCount;
         this.createdAt = LocalDateTime.now();
+    }
+
+    // ✨ 추가: 좋아요/싫어요 피드백 반영을 위한 메서드
+    public void updateFeedback(Boolean isLiked) {
+        this.isLiked = isLiked;
     }
 }

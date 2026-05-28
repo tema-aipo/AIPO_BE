@@ -1,6 +1,6 @@
 package com.aipo.backend.domain.admin.service;
 
-import com.aipo.backend.domain.chatbot.entity.MessageRole;
+import com.aipo.backend.domain.chat.entity.MessageRole;
 import com.aipo.backend.domain.chatbot.repository.ChatbotLogRepository;
 import com.aipo.backend.domain.chatbot.service.ChatbotLogService.ChatbotLogResponse;
 import lombok.RequiredArgsConstructor;

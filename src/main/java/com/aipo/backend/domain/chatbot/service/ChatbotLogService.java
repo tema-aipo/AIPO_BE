@@ -1,7 +1,7 @@
 package com.aipo.backend.domain.chatbot.service;
 
 import com.aipo.backend.domain.chatbot.entity.ChatbotLog;
-import com.aipo.backend.domain.chatbot.entity.MessageRole;
+import com.aipo.backend.domain.chat.entity.MessageRole; // 패키지 경로 주의!
 import com.aipo.backend.domain.chatbot.repository.ChatbotLogRepository;
 import com.aipo.backend.domain.user.entity.User;
 import lombok.AllArgsConstructor;
@@ -39,11 +39,13 @@ public class ChatbotLogService {
         LocalDateTime todayStart = LocalDateTime.now().toLocalDate().atStartOfDay();
         LocalDateTime weekAgo = LocalDateTime.now().minusDays(7);
 
-        long totalMessages = chatbotLogRepository.count();
+        // ✨ 수정 완료: 이제 챗봇(ASSISTANT) 대답은 무시하고 사용자(USER) 질문만 셉니다!
+        long totalMessages = chatbotLogRepository.countByMessageRole(MessageRole.USER);
+        long todayMessages = chatbotLogRepository.countByMessageRoleAndCreatedAtAfter(MessageRole.USER, todayStart);
+        long weeklyMessages = chatbotLogRepository.countByMessageRoleAndCreatedAtAfter(MessageRole.USER, weekAgo);
+
         long totalSessions = chatbotLogRepository.countDistinctSessions();
-        long todayMessages = chatbotLogRepository.countByCreatedAtAfter(todayStart);
         long todaySessions = chatbotLogRepository.countDistinctSessionsAfter(todayStart);
-        long weeklyMessages = chatbotLogRepository.countByCreatedAtAfter(weekAgo);
         long weeklyTokens = chatbotLogRepository.sumTokenCountAfter(weekAgo);
 
         return new ChatbotStats(totalMessages, totalSessions, todayMessages, todaySessions,
@@ -59,6 +61,7 @@ public class ChatbotLogService {
         private String content;
         private Integer tokenCount;
         private LocalDateTime createdAt;
+        private Boolean isLiked; // ✨ 응답에도 좋아요 상태 추가!
 
         public static ChatbotLogResponse from(ChatbotLog log) {
             return new ChatbotLogResponse(
@@ -67,7 +70,8 @@ public class ChatbotLogService {
                     log.getMessageRole(),
                     log.getContent(),
                     log.getTokenCount(),
-                    log.getCreatedAt()
+                    log.getCreatedAt(),
+                    log.getIsLiked()
             );
         }
     }

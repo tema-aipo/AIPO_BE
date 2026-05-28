@@ -1,7 +1,7 @@
 package com.aipo.backend.domain.admin.controller;
 
 import com.aipo.backend.domain.admin.service.AdminChatbotService;
-import com.aipo.backend.domain.chatbot.entity.MessageRole;
+import com.aipo.backend.domain.chat.entity.MessageRole;
 import com.aipo.backend.domain.chatbot.service.ChatbotLogService.ChatbotLogResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;

@@ -36,7 +36,11 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                         candidate.ipoId(),
                         0,
                         candidate.name(),
-                        candidate.viewCount()
+                        candidate.viewCount(),
+                        "-",
+                        candidate.subscriptionStartDate(),
+                        candidate.subscriptionEndDate(),
+                        candidate.listingDate()
                 ))
                 .toList();
     }
@@ -347,7 +351,11 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 toLong(row[0]),
                 0,
                 IpoStockViewMapper.displayName(toString(row[1]), toString(row[2]), toString(row[3])),
-                toLong(row[4])
+                toLong(row[4]),
+                "-",
+                IpoStockViewMapper.parseSubscriptionDateText(toString(row[6]), 0),
+                IpoStockViewMapper.parseSubscriptionDateText(toString(row[6]), 1),
+                IpoStockViewMapper.parseIsoDate(toString(row[5]))
         );
     }
 

@@ -131,6 +131,12 @@ public class HomeService {
                         .toList(),
                 currentProfileType(userId)
         );
+        Map<Long, String> leadManagerMap = ipoStockRepository.findUnderwritersByStockIds(
+                        candidates.stream().map(FeaturedIpoCandidate::ipoId).toList()
+                )
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> firstUnderwriter(entry.getValue())));
 
         List<FeaturedIpoItem> featured = candidates.stream()
                 .sorted(Comparator
@@ -143,7 +149,11 @@ public class HomeService {
                         candidate.ipoId(),
                         0,
                         candidate.name(),
-                        candidate.viewCount()
+                        candidate.viewCount(),
+                        leadManagerMap.getOrDefault(candidate.ipoId(), "-"),
+                        candidate.subscriptionStartDate(),
+                        candidate.subscriptionEndDate(),
+                        candidate.listingDate()
                 ))
                 .toList();
 
@@ -247,7 +257,11 @@ public class HomeService {
                         items.get(i).ipoId(),
                         i + 1,
                         items.get(i).name(),
-                        items.get(i).viewCount()
+                        items.get(i).viewCount(),
+                        items.get(i).leadManager(),
+                        items.get(i).subscriptionStartDate(),
+                        items.get(i).subscriptionEndDate(),
+                        items.get(i).listingDate()
                 ))
                 .toList();
     }

@@ -88,15 +88,26 @@ public class UserProfileService {
         entityManager.createNativeQuery("DELETE FROM user_investment_profile_result WHERE user_id = :userId")
                 .setParameter("userId", userId).executeUpdate();
 
-        // 9. 푸시 알림 설정 삭제
+        // 9. 챗봇 로그는 보존하되 탈퇴 사용자 참조를 제거
+        entityManager.createNativeQuery("UPDATE chatbot_log SET user_id = NULL WHERE user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 10. 로그인 로그와 투자 성향 요약 삭제
+        entityManager.createNativeQuery("DELETE FROM user_login_log WHERE user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        entityManager.createNativeQuery("DELETE FROM user_investment_type WHERE user_id = :userId")
+                .setParameter("userId", userId).executeUpdate();
+
+        // 11. 푸시 알림 설정 삭제
         entityManager.createNativeQuery("DELETE FROM user_notification_setting WHERE user_id = :userId")
                 .setParameter("userId", userId).executeUpdate();
 
-        // 10. 리프레시 토큰 삭제
+        // 12. 리프레시 토큰 삭제
         entityManager.createNativeQuery("DELETE FROM user_refresh_token WHERE user_id = :userId")
                 .setParameter("userId", userId).executeUpdate();
 
-        // 11. 최종 회원 물리 삭제 (JPA Repository delete 호출로 1차 캐시와 상태 일치시킴!)
+        // 13. 최종 회원 물리 삭제 (JPA Repository delete 호출로 1차 캐시와 상태 일치시킴!)
         userRepository.delete(user);
 
         // 즉시 데이터베이스 동기화 및 영속성 컨텍스트 초기화 (Dirty Checking 방지)

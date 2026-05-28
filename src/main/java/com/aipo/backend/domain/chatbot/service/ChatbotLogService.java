@@ -44,10 +44,9 @@ public class ChatbotLogService {
         long todayMessages = chatbotLogRepository.countByCreatedAtAfter(todayStart);
         long todaySessions = chatbotLogRepository.countDistinctSessionsAfter(todayStart);
         long weeklyMessages = chatbotLogRepository.countByCreatedAtAfter(weekAgo);
-        long weeklyTokens = chatbotLogRepository.sumTokenCountAfter(weekAgo);
 
         return new ChatbotStats(totalMessages, totalSessions, todayMessages, todaySessions,
-                weeklyMessages, weeklyTokens);
+                weeklyMessages, 0);
     }
 
     @Getter
@@ -66,7 +65,7 @@ public class ChatbotLogService {
                     log.getSessionId(),
                     log.getMessageRole(),
                     log.getContent(),
-                    log.getTokenCount(),
+                    null,
                     log.getCreatedAt()
             );
         }

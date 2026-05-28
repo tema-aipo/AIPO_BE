@@ -32,6 +32,4 @@ public interface ChatbotLogRepository extends JpaRepository<ChatbotLog, Long> {
     @Query("SELECT COUNT(DISTINCT c.sessionId) FROM ChatbotLog c WHERE c.createdAt >= :after")
     long countDistinctSessionsAfter(@Param("after") LocalDateTime after);
 
-    @Query("SELECT COALESCE(SUM(c.tokenCount), 0) FROM ChatbotLog c WHERE c.createdAt >= :after")
-    long sumTokenCountAfter(@Param("after") LocalDateTime after);
 }

@@ -11,9 +11,12 @@ import com.aipo.backend.domain.chat.repository.ChatMessageRepository;
 import com.aipo.backend.domain.chatbot.client.PythonChatbotClient;
 import com.aipo.backend.domain.chatbot.dto.PythonChatRequest;
 import com.aipo.backend.domain.chatbot.dto.PythonChatResponse;
+import com.aipo.backend.domain.chatbot.service.ChatbotLogService;
 import com.aipo.backend.domain.investmentprofile.dto.InvestmentProfileResultResponse;
 import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileTestStatus;
 import com.aipo.backend.domain.investmentprofile.service.InvestmentProfileService;
+import com.aipo.backend.domain.user.entity.User;
+import com.aipo.backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +35,8 @@ public class ChatMessageService {
     private final ChatMessageRepository chatMessageRepository;
     private final PythonChatbotClient pythonChatbotClient;
     private final InvestmentProfileService investmentProfileService;
+    private final ChatbotLogService chatbotLogService;
+    private final UserRepository userRepository;
 
     @Transactional
     public SendChatMessageResponse sendMessage(Long userId, Long sessionId, String question) {
@@ -46,6 +51,14 @@ public class ChatMessageService {
         String normalizedQuestion = question.trim();
         ChatMessage userMessage = chatMessageRepository.save(
                 ChatMessage.create(chatSession, MessageRole.USER, MessageType.TEXT, normalizedQuestion, nextSequenceNo)
+        );
+        User user = userRepository.findById(userId).orElse(null);
+        chatbotLogService.record(
+                user,
+                String.valueOf(sessionId),
+                com.aipo.backend.domain.chatbot.entity.MessageRole.USER,
+                normalizedQuestion,
+                null
         );
 
         PythonChatResponse chatbotResponse = pythonChatbotClient.chat(new PythonChatRequest(
@@ -63,6 +76,13 @@ public class ChatMessageService {
                         chatbotResponse.answer(),
                         nextSequenceNo + 1
                 )
+        );
+        chatbotLogService.record(
+                user,
+                String.valueOf(sessionId),
+                com.aipo.backend.domain.chatbot.entity.MessageRole.ASSISTANT,
+                chatbotResponse.answer(),
+                null
         );
 
         chatSession.touchLastMessageAt(assistantMessage.getCreatedAt());

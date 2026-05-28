@@ -37,9 +37,6 @@ public class ChatbotLog {
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "token_count")
-    private Integer tokenCount;
-
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -48,7 +45,6 @@ public class ChatbotLog {
         this.sessionId = sessionId;
         this.messageRole = messageRole;
         this.content = content;
-        this.tokenCount = tokenCount;
         this.createdAt = LocalDateTime.now();
     }
 }

@@ -59,7 +59,7 @@ class HomeServiceTest {
     }
 
     @Test
-    void getHome_recentGrowth_returnsRecentListingsOnlyInDateOrder() {
+    void getHome_recentGrowth_returnsAllListingsInDateOrder() {
         HomeService homeService = new HomeService(
                 ipoStockRepository,
                 userInvestmentProfileResultRepository,
@@ -76,18 +76,18 @@ class HomeServiceTest {
         when(ipoStockRepository.findTrendingIpos()).thenReturn(List.of());
         when(ipoStockRepository.findAttractivenessByRecentGrowth())
                 .thenReturn(List.of(oldListing, recentOlder, todayListing, futureListing, recentNewer));
-        when(ipoStockRepository.findUnderwritersByStockIds(List.of(4L, 3L, 5L))).thenReturn(Map.of());
+        when(ipoStockRepository.findUnderwritersByStockIds(List.of(4L, 3L, 5L, 2L, 1L))).thenReturn(Map.of());
 
         HomeResponse response = homeService.getHome("recentGrowth", null);
 
         assertThat(response.attractiveness().selectedTab()).isEqualTo("recentGrowth");
         assertThat(response.attractiveness().items())
                 .extracting(AttractivenessItem::ipoId)
-                .containsExactly(4L, 3L, 5L);
+                .containsExactly(4L, 3L, 5L, 2L, 1L);
     }
 
     @Test
-    void getHome_featuredIpos_includeUpcomingListingsAndActiveSubscriptionsThenSortByScoreAndViewCount() {
+    void getHome_featuredIpos_useAllCandidatesAndSortByProfileScoreThenViewCount() {
         HomeService homeService = new HomeService(
                 ipoStockRepository,
                 userInvestmentProfileResultRepository,
@@ -122,7 +122,7 @@ class HomeServiceTest {
 
         assertThat(response.featuredIpos())
                 .extracting(FeaturedIpoItem::ipoId)
-                .containsExactly(8L, 4L, 7L, 2L, 1L);
+                .containsExactly(5L, 6L, 8L, 3L, 4L);
         assertThat(response.featuredIpos())
                 .extracting(FeaturedIpoItem::rank)
                 .containsExactly(1, 2, 3, 4, 5);

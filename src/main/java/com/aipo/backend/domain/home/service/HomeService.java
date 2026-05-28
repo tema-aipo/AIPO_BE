@@ -12,7 +12,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -24,9 +23,7 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 public class HomeService {
 
-    private static final int FEATURED_LISTING_START_DAYS = 1;
-    private static final int FEATURED_LISTING_END_DAYS = 7;
-    private static final int RECENT_LISTING_WINDOW_DAYS = 7;
+    private static final int HOME_LIST_LIMIT = 20;
 
     private final IpoStockRepository ipoStockRepository;
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
@@ -84,11 +81,10 @@ public class HomeService {
     private List<AttractivenessItem> sortAndLimitItems(HomeTab tab, List<AttractivenessItem> items) {
         return switch (tab) {
             case RECENT_GROWTH -> items.stream()
-                    .filter(item -> isRecentListing(item, LocalDate.now()))
                     .sorted(Comparator
                             .comparing(AttractivenessItem::listingDate, Comparator.nullsLast(Comparator.reverseOrder()))
                             .thenComparing(AttractivenessItem::ipoId))
-                    .limit(10)
+                    .limit(HOME_LIST_LIMIT)
                     .toList();
             case SUBSCRIPTION_UPCOMING -> {
                 LocalDate today = LocalDate.now();
@@ -98,7 +94,7 @@ public class HomeService {
                                 .comparing((AttractivenessItem item) -> subscriptionUpcomingSortDate(item, today),
                                         Comparator.nullsLast(Comparator.naturalOrder()))
                                 .thenComparing(AttractivenessItem::ipoId))
-                        .limit(10)
+                        .limit(HOME_LIST_LIMIT)
                         .toList();
             }
             case FAVORITE -> items;
@@ -123,30 +119,8 @@ public class HomeService {
         return startDate;
     }
 
-    private boolean isRecentListing(AttractivenessItem item, LocalDate today) {
-        LocalDate listingDate = item.listingDate();
-        if (listingDate == null) {
-            return false;
-        }
-        return !listingDate.isBefore(today.minusDays(RECENT_LISTING_WINDOW_DAYS))
-                && !listingDate.isAfter(today.plusDays(RECENT_LISTING_WINDOW_DAYS));
-    }
-
     private List<FeaturedIpoItem> getFeaturedIpos(Long userId) {
         List<FeaturedIpoCandidate> candidates = ipoStockRepository.findFeaturedIpoCandidates();
-        if (candidates.isEmpty()) {
-            return List.of();
-        }
-
-        LocalDate today = LocalDate.now();
-        candidates = candidates.stream()
-                .filter(candidate -> isFeaturedListingCandidate(candidate.listingDate(), today)
-                        || isFeaturedSubscriptionCandidate(
-                                candidate.subscriptionStartDate(),
-                                candidate.subscriptionEndDate(),
-                                today
-                        ))
-                .toList();
         if (candidates.isEmpty()) {
             return List.of();
         }
@@ -174,29 +148,6 @@ public class HomeService {
                 .toList();
 
         return applyFeaturedRank(featured);
-    }
-
-    private boolean isFeaturedListingCandidate(LocalDate listingDate, LocalDate today) {
-        if (listingDate == null) {
-            return false;
-        }
-
-        long daysUntilListing = ChronoUnit.DAYS.between(today, listingDate);
-        return daysUntilListing >= FEATURED_LISTING_START_DAYS
-                && daysUntilListing <= FEATURED_LISTING_END_DAYS;
-    }
-
-    private boolean isFeaturedSubscriptionCandidate(
-            LocalDate subscriptionStartDate,
-            LocalDate subscriptionEndDate,
-            LocalDate today
-    ) {
-        if (subscriptionStartDate == null && subscriptionEndDate == null) {
-            return false;
-        }
-        LocalDate startDate = subscriptionStartDate == null ? today : subscriptionStartDate;
-        LocalDate endDate = subscriptionEndDate == null ? subscriptionStartDate : subscriptionEndDate;
-        return !startDate.isAfter(today) && endDate != null && !endDate.isBefore(today);
     }
 
     private AttractivenessItem toAttractivenessItem(FeaturedIpoCandidate candidate) {

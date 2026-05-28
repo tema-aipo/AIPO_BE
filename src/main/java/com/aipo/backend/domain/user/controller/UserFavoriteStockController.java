@@ -1,6 +1,7 @@
 package com.aipo.backend.domain.user.controller;
 
 import com.aipo.backend.domain.user.dto.FavoriteStockResponse;
+import com.aipo.backend.domain.user.dto.UpdateFavoriteNotificationRequest;
 import com.aipo.backend.domain.user.service.FavoriteService;
 import com.aipo.backend.global.config.OpenApiConfig;
 import com.aipo.backend.global.exception.ErrorResponse;
@@ -19,7 +20,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -78,5 +81,17 @@ public class UserFavoriteStockController {
     ) {
         favoriteService.removeFavorite(principal.getUserId(), ipoId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{ipoId}/notification")
+    @Operation(summary = "관심종목 알림 설정", description = "관심종목별 알림 ON/OFF를 수정합니다.")
+    public ResponseEntity<FavoriteStockResponse> updateFavoriteNotification(
+            @PathVariable Long ipoId,
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestBody UpdateFavoriteNotificationRequest request
+    ) {
+        return ResponseEntity.ok(
+                favoriteService.updateFavoriteNotification(principal.getUserId(), ipoId, request.enabled())
+        );
     }
 }

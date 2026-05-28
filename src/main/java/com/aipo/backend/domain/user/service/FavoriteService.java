@@ -32,7 +32,7 @@ public class FavoriteService {
     private final AttractivenessService attractivenessService;
 
     public List<FavoriteStockResponse> getFavorites(Long userId) {
-        List<UserFavoriteStock> favorites = userFavoriteStockRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        List<UserFavoriteStock> favorites = userFavoriteStockRepository.findAllByUserIdOrderByCreatedAtAsc(userId);
         if (favorites.isEmpty()) {
             return Collections.emptyList();
         }
@@ -117,7 +117,8 @@ public class FavoriteService {
                 score,
                 leadManager,
                 status,
-                dateRange
+                dateRange,
+                favoriteStock.isNotificationEnabled()
         );
     }
 
@@ -220,6 +221,21 @@ public class FavoriteService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FAVORITE_STOCK_NOT_FOUND));
 
         userFavoriteStockRepository.delete(favoriteStock);
+    }
+
+    @Transactional
+    public FavoriteStockResponse updateFavoriteNotification(Long userId, Long ipoId, boolean enabled) {
+        UserFavoriteStock favoriteStock = userFavoriteStockRepository.findByUserIdAndStock_Id(userId, ipoId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FAVORITE_STOCK_NOT_FOUND));
+
+        favoriteStock.updateNotificationEnabled(enabled);
+
+        Map<Long, String> underwritersByStockId = ipoStockRepository.findUnderwritersByStockIds(List.of(ipoId));
+        Map<Long, Integer> scoreByStockId = calculateFavoriteScores(
+                List.of(favoriteStock),
+                currentProfileType(userId)
+        );
+        return toResponse(favoriteStock, underwritersByStockId, scoreByStockId);
     }
 
     private record SimpleAttractivenessIpoProjection(

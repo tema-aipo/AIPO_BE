@@ -14,7 +14,7 @@ public interface UserFavoriteStockRepository extends JpaRepository<UserFavoriteS
     boolean existsByUserIdAndStock_Id(Long userId, Long stockId);
 
     @EntityGraph(attributePaths = "stock")
-    List<UserFavoriteStock> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+    List<UserFavoriteStock> findAllByUserIdOrderByCreatedAtAsc(Long userId);
 
     Optional<UserFavoriteStock> findByUserIdAndStock_Id(Long userId, Long stockId);
 

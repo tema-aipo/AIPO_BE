@@ -14,6 +14,7 @@ public record FavoriteStockResponse(
         Integer attractionScore,
         String leadManager,
         String status,
-        String dateRange
+        String dateRange,
+        Boolean notificationEnabled
 ) {
 }

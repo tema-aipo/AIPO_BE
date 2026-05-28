@@ -19,6 +19,9 @@ import java.time.LocalDateTime;
 )
 public class UserFavoriteStock {
 
+    private static final String ALERT_ENABLED = "Y";
+    private static final String ALERT_DISABLED = "N";
+
     // 관심종목 PK
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,7 +57,16 @@ public class UserFavoriteStock {
         UserFavoriteStock favoriteStock = new UserFavoriteStock();
         favoriteStock.userId = userId;
         favoriteStock.stock = stock;
+        favoriteStock.alertYn = ALERT_ENABLED;
         favoriteStock.createdAt = LocalDateTime.now();
         return favoriteStock;
+    }
+
+    public boolean isNotificationEnabled() {
+        return !ALERT_DISABLED.equalsIgnoreCase(alertYn);
+    }
+
+    public void updateNotificationEnabled(boolean enabled) {
+        this.alertYn = enabled ? ALERT_ENABLED : ALERT_DISABLED;
     }
 }

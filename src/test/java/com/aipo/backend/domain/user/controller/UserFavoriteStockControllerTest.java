@@ -61,7 +61,8 @@ class UserFavoriteStockControllerTest {
                         85,
                         "대표주관사",
                         "청약",
-                        "04.28 ~ 04.29"
+                        "04.28 ~ 04.29",
+                        true
                 )
         ));
 
@@ -105,7 +106,8 @@ class UserFavoriteStockControllerTest {
                         90,
                         "대표주관사",
                         "청약",
-                        "05.03 ~ 05.04"
+                        "05.03 ~ 05.04",
+                        true
                 )
         ));
 

@@ -70,7 +70,7 @@ class FavoriteServiceTest {
                 LocalDate.of(2026, 5, 4)
         );
 
-        when(userFavoriteStockRepository.findAllByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(
+        when(userFavoriteStockRepository.findAllByUserIdOrderByCreatedAtAsc(userId)).thenReturn(List.of(
                 favorite(userId, firstStock, LocalDateTime.of(2026, 4, 21, 10, 0)),
                 favorite(userId, secondStock, LocalDateTime.of(2026, 4, 20, 10, 0))
         ));
@@ -88,19 +88,20 @@ class FavoriteServiceTest {
         assertThat(responses.get(0).status()).isNotNull();
         assertThat(responses.get(0).dateRange()).isNotNull();
         assertThat(responses.get(1).ipoId()).isEqualTo(2L);
-        verify(userFavoriteStockRepository).findAllByUserIdOrderByCreatedAtDesc(userId);    }
+        assertThat(responses.get(0).notificationEnabled()).isTrue();
+        verify(userFavoriteStockRepository).findAllByUserIdOrderByCreatedAtAsc(userId);    }
 
     @Test
     @DisplayName("관심종목이 없으면 빈 리스트를 반환한다")
     void getFavorites_whenNoFavorites_returnsEmptyList() {
         Long userId = 10L;
 
-        when(userFavoriteStockRepository.findAllByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
+        when(userFavoriteStockRepository.findAllByUserIdOrderByCreatedAtAsc(userId)).thenReturn(List.of());
 
         List<FavoriteStockResponse> responses = favoriteService.getFavorites(userId);
 
         assertThat(responses).isEmpty();
-        verify(userFavoriteStockRepository).findAllByUserIdOrderByCreatedAtDesc(userId);
+        verify(userFavoriteStockRepository).findAllByUserIdOrderByCreatedAtAsc(userId);
     }
 
     @Test

@@ -92,11 +92,8 @@ public class UserProfileService {
         entityManager.createNativeQuery("UPDATE chatbot_log SET user_id = NULL WHERE user_id = :userId")
                 .setParameter("userId", userId).executeUpdate();
 
-        // 10. 로그인 로그와 투자 성향 요약 삭제
+        // 10. 로그인 로그 삭제
         entityManager.createNativeQuery("DELETE FROM user_login_log WHERE user_id = :userId")
-                .setParameter("userId", userId).executeUpdate();
-
-        entityManager.createNativeQuery("DELETE FROM user_investment_type WHERE user_id = :userId")
                 .setParameter("userId", userId).executeUpdate();
 
         // 11. 푸시 알림 설정 삭제

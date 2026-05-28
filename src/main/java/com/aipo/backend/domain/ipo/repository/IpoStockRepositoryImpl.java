@@ -50,12 +50,13 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     coalesce(m.corp_name, m.stock_code),
                     m.corp_name,
                     count(v.view_log_id) as view_count,
-                    date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date
+                    date_format(nullif(m.listing_date, '0000-00-00'), '%Y-%m-%d') as listing_date,
+                    m.subscription_date
                 from ipo_main m
                 left join ipo_view_log v on v.stock_id = m.stock_id
                     and v.viewed_at >= :todayStart
                     and v.viewed_at < :tomorrowStart
-                group by m.stock_id, m.corp_name, m.stock_code, m.listing_date,
+                group by m.stock_id, m.corp_name, m.stock_code, m.listing_date, m.subscription_date,
                     m.attract_score, m.created_at
                 order by count(v.view_log_id) desc,
                     coalesce(m.attract_score, 0) desc,
@@ -121,8 +122,8 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                     and v.viewed_at >= :todayStart
                     and v.viewed_at < :tomorrowStart
                 where nullif(m.listing_date, '0000-00-00') is not null
-                    and nullif(m.listing_date, '0000-00-00') <= current_date()
-                    and nullif(m.listing_date, '0000-00-00') >= date_sub(current_date(), interval 365 day)
+                    and nullif(m.listing_date, '0000-00-00') >= date_sub(current_date(), interval 7 day)
+                    and nullif(m.listing_date, '0000-00-00') <= date_add(current_date(), interval 7 day)
                 group by m.stock_id, m.corp_name, m.stock_code, m.attract_score,
                     m.subscription_date, m.demand_forecast_date, m.refund_date,
                     m.listing_date, m.created_at
@@ -357,7 +358,9 @@ public class IpoStockRepositoryImpl implements IpoStockRepositoryCustom {
                 toLong(row[0]),
                 IpoStockViewMapper.displayName(toString(row[1]), toString(row[2]), toString(row[3])),
                 toLong(row[4]),
-                IpoStockViewMapper.parseIsoDate(toString(row[5]))
+                IpoStockViewMapper.parseIsoDate(toString(row[5])),
+                IpoStockViewMapper.parseSubscriptionDateText(toString(row[6]), 0),
+                IpoStockViewMapper.parseSubscriptionDateText(toString(row[6]), 1)
         );
     }
 

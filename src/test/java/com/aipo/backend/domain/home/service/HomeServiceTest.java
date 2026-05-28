@@ -76,18 +76,18 @@ class HomeServiceTest {
         when(ipoStockRepository.findTrendingIpos()).thenReturn(List.of());
         when(ipoStockRepository.findAttractivenessByRecentGrowth())
                 .thenReturn(List.of(oldListing, recentOlder, todayListing, futureListing, recentNewer));
-        when(ipoStockRepository.findUnderwritersByStockIds(List.of(3L, 5L, 2L))).thenReturn(Map.of());
+        when(ipoStockRepository.findUnderwritersByStockIds(List.of(4L, 3L, 5L))).thenReturn(Map.of());
 
         HomeResponse response = homeService.getHome("recentGrowth", null);
 
         assertThat(response.attractiveness().selectedTab()).isEqualTo("recentGrowth");
         assertThat(response.attractiveness().items())
                 .extracting(AttractivenessItem::ipoId)
-                .containsExactly(3L, 5L, 2L);
+                .containsExactly(4L, 3L, 5L);
     }
 
     @Test
-    void getHome_featuredIpos_includeListingsWithinSevenDaysAndSortByProfileScoreThenViewCount() {
+    void getHome_featuredIpos_includeUpcomingListingsAndActiveSubscriptionsThenSortByScoreAndViewCount() {
         HomeService homeService = new HomeService(
                 ipoStockRepository,
                 userInvestmentProfileResultRepository,
@@ -102,7 +102,8 @@ class HomeServiceTest {
                 candidate(2L, "high-score-low-view", 5L, today.plusDays(1)),
                 candidate(3L, "outside-seven-days", 10L, today.plusDays(8)),
                 candidate(4L, "high-score-high-view", 10L, today.plusDays(2)),
-                candidate(7L, "seventh-day", 9L, today.plusDays(7))
+                candidate(7L, "seventh-day", 9L, today.plusDays(7)),
+                candidate(8L, "active-subscription", 50L, null, today.minusDays(1), today.plusDays(1))
         ));
         when(ipoStockRepository.findAllForAttractiveness()).thenReturn(List.of(
                 attractivenessIpo(1L, "low-score-high-view", "100", "0", "100", "0"),
@@ -111,7 +112,8 @@ class HomeServiceTest {
                 attractivenessIpo(4L, "high-score-high-view", "1000", "80", "10", "80"),
                 attractivenessIpo(5L, "today", "1000", "80", "10", "80"),
                 attractivenessIpo(6L, "past", "1000", "80", "10", "80"),
-                attractivenessIpo(7L, "seventh-day", "1000", "80", "10", "80")
+                attractivenessIpo(7L, "seventh-day", "1000", "80", "10", "80"),
+                attractivenessIpo(8L, "active-subscription", "1000", "80", "10", "80")
         ));
         when(ipoStockRepository.findTrendingIpos()).thenReturn(List.of());
         when(ipoStockRepository.findAttractivenessByRecentGrowth()).thenReturn(List.of());
@@ -120,10 +122,10 @@ class HomeServiceTest {
 
         assertThat(response.featuredIpos())
                 .extracting(FeaturedIpoItem::ipoId)
-                .containsExactly(4L, 7L, 2L, 1L);
+                .containsExactly(8L, 4L, 7L, 2L, 1L);
         assertThat(response.featuredIpos())
                 .extracting(FeaturedIpoItem::rank)
-                .containsExactly(1, 2, 3, 4);
+                .containsExactly(1, 2, 3, 4, 5);
     }
 
     private AttractivenessItem item(Long ipoId, String name, LocalDate startDate, LocalDate endDate) {
@@ -155,7 +157,25 @@ class HomeServiceTest {
     }
 
     private FeaturedIpoCandidate candidate(Long ipoId, String name, Long viewCount, LocalDate listingDate) {
-        return new FeaturedIpoCandidate(ipoId, name, viewCount, listingDate);
+        return candidate(ipoId, name, viewCount, listingDate, null, null);
+    }
+
+    private FeaturedIpoCandidate candidate(
+            Long ipoId,
+            String name,
+            Long viewCount,
+            LocalDate listingDate,
+            LocalDate subscriptionStartDate,
+            LocalDate subscriptionEndDate
+    ) {
+        return new FeaturedIpoCandidate(
+                ipoId,
+                name,
+                viewCount,
+                listingDate,
+                subscriptionStartDate,
+                subscriptionEndDate
+        );
     }
 
     private AttractivenessIpoProjection attractivenessIpo(

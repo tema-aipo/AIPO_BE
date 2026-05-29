@@ -39,10 +39,14 @@ public class AdminDashboardController {
     @Operation(summary = "대시보드 상단 기본 통계 조회")
     @GetMapping("/stats")
     public StatsResponse stats() {
-        long totalUsers = userRepository.countByRole(UserRole.USER);
-        long activeUsers = userRepository.countByUserStatus(UserStatus.ACTIVE);
-        long suspendedUsers = userRepository.countByUserStatus(UserStatus.SUSPENDED);
-        long withdrawnUsers = userRepository.countByUserStatus(UserStatus.WITHDRAWN);
+        // 1. 전체 회원 (일반 유저 중 '탈퇴'가 아닌 사람)
+        long totalUsers = userRepository.countByRoleAndUserStatusNot(UserRole.USER, UserStatus.WITHDRAWN);
+// 2. 활성 회원 (일반 유저 중 '활성' 상태인 사람)
+        long activeUsers = userRepository.countByRoleAndUserStatus(UserRole.USER, UserStatus.ACTIVE);
+// 3. 정지 회원 (일반 유저 중 '정지' 상태인 사람)
+        long suspendedUsers = userRepository.countByRoleAndUserStatus(UserRole.USER, UserStatus.SUSPENDED);
+// 4. 탈퇴 회원 (일반 유저 중 '탈퇴' 상태인 사람)
+        long withdrawnUsers = userRepository.countByRoleAndUserStatus(UserRole.USER, UserStatus.WITHDRAWN);
         long newUsersLast7Days = userRepository.countByRoleAndCreatedAtAfter(
                 UserRole.USER, LocalDateTime.now().minusDays(7));
 

@@ -10,6 +10,7 @@ spring:
 
   jpa:
     hibernate:
+      # ✨ 아주 안전한 설정! 서버를 껐다 켜도 데이터가 날아가지 않습니다.
       ddl-auto: update
     show-sql: true
     properties:

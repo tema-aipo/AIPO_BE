@@ -44,9 +44,6 @@ public class ChatbotLog {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "is_liked")
-    private Boolean isLiked; // ✨ 추가: 좋아요(true), 싫어요(false), 미평가(null)
-
     public ChatbotLog(User user, String sessionId, MessageRole messageRole, String content, Integer tokenCount) {
         this.user = user;
         this.sessionId = sessionId;
@@ -54,10 +51,5 @@ public class ChatbotLog {
         this.content = content;
         this.tokenCount = tokenCount;
         this.createdAt = LocalDateTime.now();
-    }
-
-    // ✨ 추가: 좋아요/싫어요 피드백 반영을 위한 메서드
-    public void updateFeedback(Boolean isLiked) {
-        this.isLiked = isLiked;
     }
 }

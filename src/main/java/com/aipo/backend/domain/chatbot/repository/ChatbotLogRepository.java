@@ -40,4 +40,5 @@ public interface ChatbotLogRepository extends JpaRepository<ChatbotLog, Long> {
 
     @Query("SELECT COALESCE(SUM(c.tokenCount), 0) FROM ChatbotLog c WHERE c.createdAt >= :after")
     long sumTokenCountAfter(@Param("after") LocalDateTime after);
+    // 좋아요(true) 또는 싫어요(false) 개수 세기
 }

@@ -1,5 +1,8 @@
 package com.aipo.backend.domain.admin.controller;
 
+import com.aipo.backend.domain.chat.entity.FeedbackReasonCode;
+import com.aipo.backend.domain.chat.entity.FeedbackType;
+import com.aipo.backend.domain.chat.service.ChatFeedbackAdminService;
 import com.aipo.backend.domain.chatbot.entity.MessageRole;
 import com.aipo.backend.domain.chatbot.service.ChatbotLogService;
 import com.aipo.backend.domain.log.service.LoginLogService;
@@ -25,6 +28,7 @@ public class AdminLogController {
 
     private final LoginLogService loginLogService;
     private final ChatbotLogService chatbotLogService;
+    private final ChatFeedbackAdminService chatFeedbackAdminService;
 
     @Operation(summary = "로그인 로그 조회")
     @GetMapping("/login")
@@ -52,5 +56,19 @@ public class AdminLogController {
 
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return chatbotLogService.getLogs(sessionId, messageRole, from, to, pageable);
+    }
+
+    @Operation(summary = "Chatbot feedback list")
+    @GetMapping("/chatbot/feedback")
+    public Page<ChatFeedbackAdminService.ChatFeedbackAdminResponse> chatbotFeedbacks(
+            @RequestParam(required = false) FeedbackType feedbackType,
+            @RequestParam(required = false) FeedbackReasonCode reasonCode,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
+        return chatFeedbackAdminService.getFeedbacks(feedbackType, reasonCode, from, to, pageable);
     }
 }

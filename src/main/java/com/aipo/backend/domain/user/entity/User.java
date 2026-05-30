@@ -1,6 +1,13 @@
 package com.aipo.backend.domain.user.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -99,6 +106,7 @@ public class User {
         this.deletedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
+
     public boolean isWithdrawn() {
         return this.userStatus == UserStatus.WITHDRAWN;
     }
@@ -108,8 +116,3 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
 }
-// NOTE:
-// 현재는 USER/ACTIVE 중심의 최소 인증 구조만 사용한다.
-// 추후 관리자 웹, 회원탈퇴, 계정 정지 정책이 추가되면
-// role 및 userStatus 값 범위를 확장하고 관련 검증 로직을 보완해야 한다.
-// 비밀번호, 이메일 정책 추가 예정

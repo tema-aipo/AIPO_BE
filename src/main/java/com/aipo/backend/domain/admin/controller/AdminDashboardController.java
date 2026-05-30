@@ -77,7 +77,7 @@ public class AdminDashboardController {
         );
     }
 
-    @Operation(summary = "怨듬え二?議고쉶 ?듦퀎 議고쉶")
+    @Operation(summary = "공모주 조회 통계 조회")
     @GetMapping("/ipo-stats")
     public IpoStatsResponse ipoStats() {
         LocalDateTime todayStart = LocalDateTime.now().toLocalDate().atStartOfDay();
@@ -214,3 +214,4 @@ public class AdminDashboardController {
         private long favoriteCount;
     }
 }
+

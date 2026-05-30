@@ -1,7 +1,18 @@
 package com.aipo.backend.domain.document.entity;
 
 import com.aipo.backend.domain.user.entity.User;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -38,7 +49,7 @@ public class Document {
     @Column(name = "content_type", length = 100)
     private String contentType;
 
-    /** DART 공시 수신번호(rcept_no) 등 외부 시스템의 고유 키. 크롤링 중복 방지에 사용된다. */
+    /** External document ID used to prevent duplicate uploads. */
     @Column(name = "external_id", length = 80, unique = true)
     private String externalId;
 

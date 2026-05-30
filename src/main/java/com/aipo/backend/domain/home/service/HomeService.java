@@ -1,6 +1,11 @@
 package com.aipo.backend.domain.home.service;
 
-import com.aipo.backend.domain.home.dto.*;
+import com.aipo.backend.domain.home.dto.AttractivenessItem;
+import com.aipo.backend.domain.home.dto.AttractivenessResponse;
+import com.aipo.backend.domain.home.dto.FeaturedIpoCandidate;
+import com.aipo.backend.domain.home.dto.FeaturedIpoItem;
+import com.aipo.backend.domain.home.dto.HomeResponse;
+import com.aipo.backend.domain.home.dto.TrendingIpoItem;
 import com.aipo.backend.domain.home.type.HomeTab;
 import com.aipo.backend.domain.investmentprofile.entity.InvestmentProfileType;
 import com.aipo.backend.domain.investmentprofile.repository.UserInvestmentProfileResultRepository;
@@ -19,7 +24,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-@Service // ??쑴已??됰뮞 嚥≪뮇彛?筌ｌ꼶???④쑴留?
+@Service
 @RequiredArgsConstructor
 public class HomeService {
 
@@ -43,7 +48,6 @@ public class HomeService {
     }
 
     private List<AttractivenessItem> getAttractivenessItems(HomeTab tab, Long userId) {
-        // ?醫뤾문????肉??怨뺤뵬 ??삘뀲 鈺곌퀬??筌롫뗄苑???紐꾪뀱
         List<AttractivenessItem> items = switch (tab) {
             case RECENT_GROWTH -> ipoStockRepository.findAttractivenessByRecentGrowth();
             case SUBSCRIPTION_UPCOMING -> ipoStockRepository.findAttractivenessBySubscriptionUpcoming();
@@ -53,14 +57,12 @@ public class HomeService {
         items = sortAndLimitItems(tab, items);
         if (items.isEmpty()) return items;
 
-        // 獄쏄퀣??鈺곌퀬?? ?ル굝??ID 筌뤴뫖以??곗쨮 雅뚯눊?????甕곕뜆肉?嚥≪뮆諭?
         List<Long> stockIds = items.stream().map(AttractivenessItem::ipoId).toList();
         Map<Long, String> leadManagerMap = ipoStockRepository.findUnderwritersByStockIds(stockIds)
                 .entrySet()
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> firstUnderwriter(entry.getValue())));
 
-        // stockId ??筌?甕곕뜆??雅뚯눊???梨?筌띲끋釉?(displayOrder 筌ㅼ뮇?뽩첎?
         Map<Long, Integer> scoreByStockId = calculateHomeScores(items, currentProfileType(userId));
 
         return items.stream()
@@ -251,7 +253,6 @@ public class HomeService {
     }
 
     private List<FeaturedIpoItem> applyFeaturedRank(List<FeaturedIpoItem> items) {
-        // 鈺곌퀬??野껉퀗???1,2,3... ??뽰맄???븐늿肉????揶쏆빘猿쒏에?獄쏆꼹??
         return IntStream.range(0, items.size())
                 .mapToObj(i -> new FeaturedIpoItem(
                         items.get(i).ipoId(),
@@ -267,7 +268,6 @@ public class HomeService {
     }
 
     private List<TrendingIpoItem> applyTrendingRank(List<TrendingIpoItem> items) {
-        // 疫뀀맧踰?野껉퀗??癒?즲 1,2,3... ??뽰맄???븐늿肉??獄쏆꼹??
         return IntStream.range(0, items.size())
                 .mapToObj(i -> new TrendingIpoItem(
                         items.get(i).ipoId(),

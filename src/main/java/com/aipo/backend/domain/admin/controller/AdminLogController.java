@@ -15,7 +15,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 
@@ -58,7 +61,7 @@ public class AdminLogController {
         return chatbotLogService.getLogs(sessionId, messageRole, from, to, pageable);
     }
 
-    @Operation(summary = "Chatbot feedback list")
+    @Operation(summary = "챗봇 피드백 목록 조회")
     @GetMapping("/chatbot/feedback")
     public Page<ChatFeedbackAdminService.ChatFeedbackAdminResponse> chatbotFeedbacks(
             @RequestParam(required = false) FeedbackType feedbackType,

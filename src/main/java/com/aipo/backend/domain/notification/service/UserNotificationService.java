@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -27,6 +28,7 @@ import java.util.List;
 public class UserNotificationService {
 
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
+    private static final DateTimeFormatter DISPLAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("MM.dd");
     private static final int UPCOMING_NOTIFICATION_DAYS = 14;
     private static final int PAST_NOTIFICATION_VISIBLE_DAYS = 1;
 
@@ -136,7 +138,7 @@ public class UserNotificationService {
                 stock,
                 type,
                 title(type),
-                content(type, IpoStockViewMapper.displayCompanyName(stock)),
+                content(type, IpoStockViewMapper.displayCompanyName(stock), targetDate),
                 targetDate
         ));
         return 1;
@@ -181,11 +183,12 @@ public class UserNotificationService {
         };
     }
 
-    private String content(NotificationType type, String companyName) {
+    private String content(NotificationType type, String companyName, LocalDate targetDate) {
+        String targetDateText = targetDate.format(DISPLAY_DATE_FORMATTER);
         return switch (type) {
-            case SUBSCRIPTION_START -> companyName + " 청약이 오늘 시작됩니다.";
-            case SUBSCRIPTION_END -> companyName + " 청약이 오늘 마감됩니다.";
-            case LISTING_DATE -> companyName + " 상장일이 오늘입니다.";
+            case SUBSCRIPTION_START -> companyName + " 청약 시작일은 " + targetDateText + "입니다.";
+            case SUBSCRIPTION_END -> companyName + " 청약 마감일은 " + targetDateText + "입니다.";
+            case LISTING_DATE -> companyName + " 상장 예정일은 " + targetDateText + "입니다.";
         };
     }
 }

@@ -15,9 +15,18 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
     @EntityGraph(attributePaths = "stock")
     List<UserNotification> findAllByUserIdAndDeletedFalseOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
+    @EntityGraph(attributePaths = "stock")
+    List<UserNotification> findAllByUserIdAndDeletedFalseAndTargetDateGreaterThanEqualOrderByCreatedAtDesc(
+            Long userId,
+            LocalDate targetDate,
+            Pageable pageable
+    );
+
     Optional<UserNotification> findByIdAndUserIdAndDeletedFalse(Long id, Long userId);
 
     long countByUserIdAndReadFalseAndDeletedFalse(Long userId);
+
+    long countByUserIdAndReadFalseAndDeletedFalseAndTargetDateGreaterThanEqual(Long userId, LocalDate targetDate);
 
     List<UserNotification> findAllByUserIdAndReadFalseAndDeletedFalse(Long userId);
 

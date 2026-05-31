@@ -1,6 +1,7 @@
 package com.aipo.backend.domain.notification.dto;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 public record NotificationItemResponse(
         Long notificationId,
@@ -10,6 +11,7 @@ public record NotificationItemResponse(
         Long ipoId,
         String stockCode,
         boolean read,
+        LocalDate targetDate,
         LocalDateTime createdAt
 ) {
 }

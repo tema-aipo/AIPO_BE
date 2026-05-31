@@ -10,6 +10,7 @@ import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.repository.UserFavoriteStockRepository;
 import com.aipo.backend.domain.ipo.service.AttractivenessService;
 import com.aipo.backend.domain.ipo.service.IpoStockViewMapper;
+import com.aipo.backend.domain.notification.service.UserNotificationService;
 import com.aipo.backend.domain.user.dto.FavoriteStockResponse;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
@@ -33,6 +34,7 @@ public class FavoriteService {
     private final UserFavoriteStockRepository userFavoriteStockRepository;
     private final UserInvestmentProfileResultRepository userInvestmentProfileResultRepository;
     private final AttractivenessService attractivenessService;
+    private final UserNotificationService userNotificationService;
 
     public List<FavoriteStockResponse> getFavorites(Long userId) {
         List<UserFavoriteStock> favorites = userFavoriteStockRepository.findAllByUserIdOrderByCreatedAtAsc(userId);
@@ -215,7 +217,8 @@ public class FavoriteService {
             throw new CustomException(ErrorCode.DUPLICATE_FAVORITE_STOCK);
         }
 
-        userFavoriteStockRepository.save(UserFavoriteStock.create(userId, stock));
+        UserFavoriteStock favoriteStock = userFavoriteStockRepository.save(UserFavoriteStock.create(userId, stock));
+        userNotificationService.createUpcomingNotificationsForFavorite(favoriteStock);
     }
 
     @Transactional

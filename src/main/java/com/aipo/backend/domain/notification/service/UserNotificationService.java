@@ -18,12 +18,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class UserNotificationService {
+
+    private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
+    private static final int UPCOMING_NOTIFICATION_DAYS = 14;
+    private static final int PAST_NOTIFICATION_VISIBLE_DAYS = 1;
 
     private final UserNotificationRepository userNotificationRepository;
     private final UserFavoriteStockRepository userFavoriteStockRepository;
@@ -33,19 +38,24 @@ public class UserNotificationService {
     public NotificationListResponse getNotifications(Long userId, int page, int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 50);
+        LocalDate visibleFrom = LocalDate.now(KOREA_ZONE).minusDays(PAST_NOTIFICATION_VISIBLE_DAYS);
 
         List<NotificationItemResponse> items = userNotificationRepository
-                .findAllByUserIdAndDeletedFalseOrderByCreatedAtDesc(userId, PageRequest.of(safePage, safeSize))
+                .findAllByUserIdAndDeletedFalseAndTargetDateGreaterThanEqualOrderByCreatedAtDesc(
+                        userId,
+                        visibleFrom,
+                        PageRequest.of(safePage, safeSize)
+                )
                 .stream()
                 .map(this::toResponse)
                 .toList();
 
-        return new NotificationListResponse(items, countUnread(userId));
+        return new NotificationListResponse(items, countVisibleUnread(userId));
     }
 
     @Transactional(readOnly = true)
     public UnreadNotificationCountResponse getUnreadCount(Long userId) {
-        return new UnreadNotificationCountResponse(countUnread(userId));
+        return new UnreadNotificationCountResponse(countVisibleUnread(userId));
     }
 
     public void markRead(Long userId, Long notificationId) {
@@ -68,31 +78,50 @@ public class UserNotificationService {
         int createdCount = 0;
 
         for (UserFavoriteStock favorite : favorites) {
-            if (!favorite.isNotificationEnabled()) {
-                continue;
-            }
-
-            UserNotificationSetting setting = userNotificationSettingRepository.findByUserId(favorite.getUserId())
-                    .orElse(null);
-            IpoStock stock = favorite.getStock();
-
-            if (isSubscriptionEnabled(setting)) {
-                LocalDate subscriptionStartDate = IpoStockViewMapper.parseSubscriptionDateText(stock.getSubscriptionDate(), 0);
-                LocalDate subscriptionEndDate = IpoStockViewMapper.parseSubscriptionDateText(stock.getSubscriptionDate(), 1);
-                if (targetDate.equals(subscriptionStartDate)) {
-                    createdCount += createIfAbsent(favorite.getUserId(), stock, NotificationType.SUBSCRIPTION_START, targetDate);
-                }
-                if (targetDate.equals(subscriptionEndDate)) {
-                    createdCount += createIfAbsent(favorite.getUserId(), stock, NotificationType.SUBSCRIPTION_END, targetDate);
-                }
-            }
-
-            if (isListingEnabled(setting) && targetDate.equals(stock.getListingDate())) {
-                createdCount += createIfAbsent(favorite.getUserId(), stock, NotificationType.LISTING_DATE, targetDate);
-            }
+            createdCount += createUpcomingNotifications(favorite, targetDate);
         }
 
         return createdCount;
+    }
+
+    public int createUpcomingNotificationsForFavorite(UserFavoriteStock favorite) {
+        return createUpcomingNotifications(favorite, LocalDate.now(KOREA_ZONE));
+    }
+
+    private int createUpcomingNotifications(UserFavoriteStock favorite, LocalDate baseDate) {
+        if (!favorite.isNotificationEnabled()) {
+            return 0;
+        }
+
+        UserNotificationSetting setting = userNotificationSettingRepository.findByUserId(favorite.getUserId())
+                .orElse(null);
+        IpoStock stock = favorite.getStock();
+        int createdCount = 0;
+
+        if (isSubscriptionEnabled(setting)) {
+            LocalDate subscriptionStartDate = IpoStockViewMapper.parseSubscriptionDateText(stock.getSubscriptionDate(), 0);
+            LocalDate subscriptionEndDate = IpoStockViewMapper.parseSubscriptionDateText(stock.getSubscriptionDate(), 1);
+            if (isInUpcomingWindow(baseDate, subscriptionStartDate)) {
+                createdCount += createIfAbsent(favorite.getUserId(), stock, NotificationType.SUBSCRIPTION_START, subscriptionStartDate);
+            }
+            if (isInUpcomingWindow(baseDate, subscriptionEndDate)) {
+                createdCount += createIfAbsent(favorite.getUserId(), stock, NotificationType.SUBSCRIPTION_END, subscriptionEndDate);
+            }
+        }
+
+        if (isListingEnabled(setting) && isInUpcomingWindow(baseDate, stock.getListingDate())) {
+            createdCount += createIfAbsent(favorite.getUserId(), stock, NotificationType.LISTING_DATE, stock.getListingDate());
+        }
+
+        return createdCount;
+    }
+
+    private boolean isInUpcomingWindow(LocalDate baseDate, LocalDate targetDate) {
+        if (targetDate == null) {
+            return false;
+        }
+        LocalDate until = baseDate.plusDays(UPCOMING_NOTIFICATION_DAYS);
+        return !targetDate.isBefore(baseDate) && !targetDate.isAfter(until);
     }
 
     private int createIfAbsent(Long userId, IpoStock stock, NotificationType type, LocalDate targetDate) {
@@ -121,8 +150,12 @@ public class UserNotificationService {
         return setting == null || setting.isListingDateNotificationEnabled();
     }
 
-    private long countUnread(Long userId) {
-        return userNotificationRepository.countByUserIdAndReadFalseAndDeletedFalse(userId);
+    private long countVisibleUnread(Long userId) {
+        LocalDate visibleFrom = LocalDate.now(KOREA_ZONE).minusDays(PAST_NOTIFICATION_VISIBLE_DAYS);
+        return userNotificationRepository.countByUserIdAndReadFalseAndDeletedFalseAndTargetDateGreaterThanEqual(
+                userId,
+                visibleFrom
+        );
     }
 
     private NotificationItemResponse toResponse(UserNotification notification) {
@@ -135,6 +168,7 @@ public class UserNotificationService {
                 stock == null ? null : stock.getId(),
                 stock == null ? null : stock.getStockCode(),
                 notification.isRead(),
+                notification.getTargetDate(),
                 notification.getCreatedAt()
         );
     }

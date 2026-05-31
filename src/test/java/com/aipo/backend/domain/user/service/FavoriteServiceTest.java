@@ -6,6 +6,7 @@ import com.aipo.backend.domain.ipo.entity.UserFavoriteStock;
 import com.aipo.backend.domain.ipo.repository.IpoStockRepository;
 import com.aipo.backend.domain.ipo.repository.UserFavoriteStockRepository;
 import com.aipo.backend.domain.ipo.service.AttractivenessService;
+import com.aipo.backend.domain.notification.service.UserNotificationService;
 import com.aipo.backend.domain.user.dto.FavoriteStockResponse;
 import com.aipo.backend.global.exception.CustomException;
 import com.aipo.backend.global.exception.ErrorCode;
@@ -45,6 +46,9 @@ class FavoriteServiceTest {
 
     @Spy
     private AttractivenessService attractivenessService = new AttractivenessService();
+
+    @Mock
+    private UserNotificationService userNotificationService;
 
     @InjectMocks
     private FavoriteService favoriteService;
@@ -120,12 +124,15 @@ class FavoriteServiceTest {
 
         when(ipoStockRepository.findById(ipoId)).thenReturn(Optional.of(stock));
         when(userFavoriteStockRepository.existsByUserIdAndStock_Id(userId, ipoId)).thenReturn(false);
+        when(userFavoriteStockRepository.save(any(UserFavoriteStock.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         favoriteService.addFavorite(userId, ipoId);
 
         verify(ipoStockRepository).findById(ipoId);
         verify(userFavoriteStockRepository).existsByUserIdAndStock_Id(userId, ipoId);
         verify(userFavoriteStockRepository).save(any(UserFavoriteStock.class));
+        verify(userNotificationService).createUpcomingNotificationsForFavorite(any(UserFavoriteStock.class));
     }
 
     @Test

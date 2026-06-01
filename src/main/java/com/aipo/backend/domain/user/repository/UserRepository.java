@@ -26,11 +26,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     long countByUserStatus(UserStatus status);
 
+    // ✨ 새로 추가된 메서드 (권한과 상태를 동시에 검사)
+    long countByRoleAndUserStatus(UserRole role, UserStatus status);
+
     long countByRoleAndCreatedAtAfter(UserRole role, LocalDateTime after);
 
     @Query("SELECT u FROM User u WHERE u.role = :role " +
-           "AND (:keyword IS NULL OR u.loginId LIKE %:keyword% OR u.userName LIKE %:keyword% OR u.email LIKE %:keyword%) " +
-           "AND (:status IS NULL OR u.userStatus = :status)")
+            "AND (:keyword IS NULL OR u.loginId LIKE %:keyword% OR u.userName LIKE %:keyword% OR u.email LIKE %:keyword%) " +
+            "AND (:status IS NULL OR u.userStatus = :status)")
     Page<User> findAllByRoleAndFilter(
             @Param("role") UserRole role,
             @Param("keyword") String keyword,

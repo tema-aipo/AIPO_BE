@@ -9,18 +9,23 @@ import com.aipo.backend.domain.user.entity.User;
 import com.aipo.backend.domain.user.entity.UserRole;
 import com.aipo.backend.domain.user.repository.UserRepository;
 import com.aipo.backend.global.security.jwt.JwtTokenProvider;
+import com.aipo.backend.global.security.service.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @Tag(name = "관리자 인증", description = "관리자 로그인 API")
 @RestController
@@ -81,5 +86,23 @@ public class AdminAuthController {
                 user.getEmail(),
                 null
         );
+    }
+
+    // ✨ 새롭게 추가된 로그아웃 기능
+    @Operation(summary = "관리자 로그아웃")
+    @PostMapping("/logout")
+    @Transactional
+    public ResponseEntity<?> logout(@AuthenticationPrincipal CustomUserDetails principal) {
+        // 이미 토큰이 만료되었거나 없는 상태에서의 요청으로 인한 500 에러(NullPointerException) 방지
+        if (principal != null) {
+            // DB에서 해당 유저의 리프레시 토큰을 삭제하여 완전한 로그아웃 처리
+            userRefreshTokenRepository.deleteByUser_UserId(principal.getUserId());
+        }
+
+        // 프론트엔드에게 성공 메시지 반환
+        return ResponseEntity.ok().body(Map.of(
+                "success", true,
+                "message", "성공적으로 로그아웃 되었습니다."
+        ));
     }
 }

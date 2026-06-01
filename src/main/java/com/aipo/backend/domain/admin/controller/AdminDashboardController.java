@@ -45,9 +45,12 @@ public class AdminDashboardController {
     @GetMapping("/stats")
     public StatsResponse stats() {
         long totalUsers = safeCount(() -> userRepository.countByRole(UserRole.USER), "total users");
-        long activeUsers = safeCount(() -> userRepository.countByUserStatus(UserStatus.ACTIVE), "active users");
-        long suspendedUsers = safeCount(() -> userRepository.countByUserStatus(UserStatus.SUSPENDED), "suspended users");
-        long withdrawnUsers = safeCount(() -> userRepository.countByUserStatus(UserStatus.WITHDRAWN), "withdrawn users");
+
+        // ✨ 수정된 부분 (일반 유저(USER)인 사람만 상태별로 카운트)
+        long activeUsers = safeCount(() -> userRepository.countByRoleAndUserStatus(UserRole.USER, UserStatus.ACTIVE), "active users");
+        long suspendedUsers = safeCount(() -> userRepository.countByRoleAndUserStatus(UserRole.USER, UserStatus.SUSPENDED), "suspended users");
+        long withdrawnUsers = safeCount(() -> userRepository.countByRoleAndUserStatus(UserRole.USER, UserStatus.WITHDRAWN), "withdrawn users");
+
         long newUsersLast7Days = safeCount(
                 () -> userRepository.countByRoleAndCreatedAtAfter(UserRole.USER, LocalDateTime.now().minusDays(7)),
                 "new users last 7 days");
@@ -214,4 +217,3 @@ public class AdminDashboardController {
         private long favoriteCount;
     }
 }
-
